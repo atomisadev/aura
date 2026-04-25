@@ -1,14 +1,24 @@
+import Busboy from "@fastify/busboy";
 import { cors } from "@elysiajs/cors";
 import { Elysia, t } from "elysia";
+import { Readable } from "node:stream";
+import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 import { auth } from "./auth";
 import { db } from "./db";
+import { uploadAudioStream } from "./storage";
 
 const frontendOrigin = process.env.FRONTEND_ORIGIN ?? "http://localhost:3000";
+const maxAudioUploadBytes = Number(
+  process.env.MAX_AUDIO_UPLOAD_BYTES ?? 1024 * 1024 * 100,
+);
 const unauthorizedError = {
   message: "Authentication required",
 } as const;
 const notFoundError = {
   message: "Resource not found",
+} as const;
+const badUploadRequestError = {
+  message: "Expected multipart/form-data with a file field named `file`.",
 } as const;
 
 const betterAuth = new Elysia({ name: "better-auth" }).macro({
@@ -199,6 +209,136 @@ export const app = new Elysia()
       params: t.Object({
         id: t.String(),
       }),
+    },
+  )
+  .post(
+    "/upload",
+    async ({ request, status, user }) => {
+      const contentType = request.headers.get("content-type");
+
+      if (!contentType?.includes("multipart/form-data")) {
+        return status(400, badUploadRequestError);
+      }
+
+      if (!request.body) {
+        return status(400, badUploadRequestError);
+      }
+
+      return await new Promise((resolve) => {
+        const requestStream = Readable.fromWeb(
+          request.body as unknown as NodeReadableStream<Uint8Array>,
+        );
+        const busboy = new Busboy({
+          headers: {
+            "content-type": contentType,
+          },
+          limits: {
+            files: 1,
+            fileSize: maxAudioUploadBytes,
+            fields: 4,
+            parts: 5,
+          },
+        });
+
+        let fileSeen = false;
+        let settled = false;
+        let uploadPromise:
+          | Promise<{
+              bucket: string;
+              key: string;
+              url: string | null;
+            }>
+          | null = null;
+
+        const finish = (value: unknown) => {
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+          resolve(value);
+        };
+
+        const fail = (code: number, message: string) => {
+          requestStream.destroy();
+          finish(
+            status(code, {
+              message,
+            }),
+          );
+        };
+
+        busboy.on("file", (fieldname, file, filename, _encoding, mimeType) => {
+          if (fieldname !== "file") {
+            file.resume();
+            return;
+          }
+
+          if (fileSeen) {
+            file.resume();
+            fail(400, "Only one file upload is allowed.");
+            return;
+          }
+
+          if (!mimeType.startsWith("audio/")) {
+            file.resume();
+            fail(400, "Only audio files are allowed.");
+            return;
+          }
+
+          fileSeen = true;
+
+          file.on("limit", () => {
+            file.resume();
+            fail(413, "Audio file exceeds the upload size limit.");
+          });
+
+          uploadPromise = uploadAudioStream({
+            userId: user.id,
+            filename,
+            contentType: mimeType,
+            body: file,
+          });
+        });
+
+        busboy.on("filesLimit", () => {
+          fail(400, "Only one file upload is allowed.");
+        });
+
+        busboy.on("error", () => {
+          fail(500, "Could not process the upload.");
+        });
+
+        requestStream.on("error", () => {
+          fail(500, "Could not read the upload stream.");
+        });
+
+        busboy.on("finish", async () => {
+          if (settled) {
+            return;
+          }
+
+          if (!fileSeen || !uploadPromise) {
+            fail(400, badUploadRequestError.message);
+            return;
+          }
+
+          try {
+            const upload = await uploadPromise;
+
+            finish({
+              upload,
+            });
+          } catch {
+            fail(500, "Upload to object storage failed.");
+          }
+        });
+
+        requestStream.pipe(busboy);
+      });
+    },
+    {
+      auth: true,
     },
   );
 

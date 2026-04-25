@@ -20,14 +20,22 @@ type DashboardSession = {
 type Resource = {
   id: string;
   name: string;
-  createdAt: string;
+  createdAt: Date;
 };
 
-const formatCreatedAt = (value: string) =>
+type UploadResult = {
+  bucket: string;
+  key: string;
+  url: string | null;
+};
+
+const formatCreatedAt = (value: Date | string) =>
   new Intl.DateTimeFormat("en", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
+
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 export function DashboardClient({
   initialSession,
@@ -39,8 +47,12 @@ export function DashboardClient({
   const [resources, setResources] = useState<Resource[]>([]);
   const [renameDrafts, setRenameDrafts] = useState<Record<string, string>>({});
   const [resourceMessage, setResourceMessage] = useState<string | null>(null);
+  const [selectedAudioFile, setSelectedAudioFile] = useState<File | null>(null);
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
   const [isLoadingResources, setIsLoadingResources] = useState(false);
   const [isSavingResource, setIsSavingResource] = useState(false);
+  const [isUploadingAudio, setIsUploadingAudio] = useState(false);
 
   useEffect(() => {
     let isCancelled = false;
@@ -83,6 +95,45 @@ export function DashboardClient({
     await authClient.signOut();
     router.replace("/");
     router.refresh();
+  };
+
+  const uploadAudio = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!selectedAudioFile) {
+      setUploadMessage("Choose an audio file first.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", selectedAudioFile);
+
+    setIsUploadingAudio(true);
+    setUploadMessage(null);
+    setUploadResult(null);
+
+    const response = await fetch(`${apiBaseUrl}/upload`, {
+      method: "POST",
+      body: formData,
+      credentials: "include",
+    });
+
+    const payload = (await response.json()) as
+      | { upload: UploadResult }
+      | { message: string };
+
+    if (!response.ok || !("upload" in payload)) {
+      setUploadMessage(
+        "message" in payload ? payload.message : "Upload failed.",
+      );
+      setIsUploadingAudio(false);
+      return;
+    }
+
+    setUploadResult(payload.upload);
+    setUploadMessage("Upload complete.");
+    setSelectedAudioFile(null);
+    setIsUploadingAudio(false);
   };
 
   const createResource = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -251,6 +302,51 @@ export function DashboardClient({
                 page before the dashboard renders. Direct visits and OAuth
                 returns both end up here when the session is valid.
               </p>
+            </div>
+          </article>
+
+          <article className="rounded-[1.75rem] border border-slate-200/80 bg-white p-6">
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-medium text-slate-500">Audio upload</p>
+                <h2 className="text-xl font-semibold text-slate-950">
+                  Stream one audio file to S3/R2
+                </h2>
+              </div>
+
+              <form
+                className="space-y-3"
+                onSubmit={(event) => void uploadAudio(event)}
+              >
+                <input
+                  accept="audio/*"
+                  onChange={(event) =>
+                    setSelectedAudioFile(event.target.files?.[0] ?? null)
+                  }
+                  type="file"
+                />
+                <button
+                  className="rounded border border-slate-300 px-3 py-2 text-sm"
+                  disabled={isUploadingAudio}
+                  type="submit"
+                >
+                  {isUploadingAudio ? "Uploading..." : "Upload audio"}
+                </button>
+              </form>
+
+              {uploadMessage ? (
+                <p className="text-sm text-slate-600">{uploadMessage}</p>
+              ) : null}
+
+              {uploadResult ? (
+                <div className="space-y-1 text-sm text-slate-600">
+                  <p>Bucket: {uploadResult.bucket}</p>
+                  <p className="break-all">Key: {uploadResult.key}</p>
+                  {uploadResult.url ? (
+                    <p className="break-all">URL: {uploadResult.url}</p>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </article>
 
