@@ -5,7 +5,7 @@ import logging
 import uuid
 from typing import Optional
 
-from flask import Flask, jsonify, request
+from flask import Flask, Response, jsonify, request
 from werkzeug.datastructures import FileStorage
 
 from celeredis import RESULT_BACKEND
@@ -82,7 +82,60 @@ def create_app() -> Flask:
                 LOG.exception("Failed to delete redis key after send_task failure")
             return jsonify({"error": "failed to enqueue task", "detail": str(exc)}), 500
 
-        return jsonify({"task_id": task_id, "data_key": key}), 200
+        # Block until the Celery task finishes (timeout in seconds)
+        TIMEOUT_SECONDS = 10
+        try:
+            task_result = async_result.get(timeout=TIMEOUT_SECONDS)
+        except Exception as exc:
+            LOG.exception("Task failed or timed out: %s", exc)
+            # Optionally clean up stored input key
+            try:
+                redis_client.delete(key)
+            except Exception:
+                LOG.exception("Failed to delete input redis key after timeout/failure")
+            return jsonify(
+                {"error": "task failed or timed out", "detail": str(exc)}
+            ), 500
+
+        # Expect the task to return a dict containing 'output_key'
+        output_key = None
+        if isinstance(task_result, dict):
+            output_key = (
+                task_result.get("output_key")
+                or task_result.get("outputKey")
+                or task_result.get("output")
+            )
+        if not output_key:
+            LOG.error("Task completed but did not return output_key: %s", task_result)
+            return jsonify(
+                {"error": "no output produced", "task_result": task_result}
+            ), 500
+
+        try:
+            output_bytes = redis_client.get(output_key)
+        except Exception as exc:
+            LOG.exception("Failed to fetch output from redis: %s", exc)
+            return jsonify({"error": "failed to fetch output", "detail": str(exc)}), 500
+
+        if not output_bytes:
+            return jsonify(
+                {"error": "output not found in redis", "output_key": output_key}
+            ), 404
+
+        # Optionally delete stored keys to clean up
+        try:
+            redis_client.delete(key)
+        except Exception:
+            pass
+
+        filename = getattr(file_obj, "filename", None) or f"{output_key}.wav"
+
+        # Return the watermarked audio directly in the response
+        return Response(
+            output_bytes,
+            mimetype="audio/wav",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
 
     @app.route("/test", methods=["POST"])
     def send_test():
