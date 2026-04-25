@@ -1,16 +1,17 @@
-import numpy as np
+import sys
 
 from celeredis import app
 
 
-def send_job(signal):
-    return app.send_task("encoder.compute", args=[signal])
+def send_ping(value):
+    return app.send_task("test.ping", args=[value])
 
 
 if __name__ == "__main__":
-    x = np.random.random(1024)
-    async_result = send_job(x)
-    print("Task id:", getattr(async_result, "id", None))
+    value = sys.argv[1] if len(sys.argv) > 1 else "hello"
+
+    async_result = send_ping(value)
+    print("Sent 'test.ping' task id:", getattr(async_result, "id", None))
     print("Waiting for result (timeout=10s)...")
     try:
         print("Result:", async_result.get(timeout=10))

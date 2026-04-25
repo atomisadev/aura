@@ -1,4 +1,4 @@
-from .celeredis import app
+from celeredis import app
 
 
 @app.task(bind=True, name="encoder.compute")
