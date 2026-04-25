@@ -36,8 +36,7 @@ def main() -> None:
 
     web.logging.basicConfig(level=web.logging.INFO)
     flask_app = web.create_app()
-    # Development server - for production run behind a WSGI server
-    flask_app.run(host="0.0.0.0", port=5000, debug=False)
+    flask_app.run(host="0.0.0.0", port=5001, debug=False)
 
 
 if __name__ == "__main__":
