@@ -242,13 +242,11 @@ export const app = new Elysia()
 
         let fileSeen = false;
         let settled = false;
-        let uploadPromise:
-          | Promise<{
-              bucket: string;
-              key: string;
-              url: string | null;
-            }>
-          | null = null;
+        let uploadPromise: Promise<{
+          bucket: string;
+          key: string;
+          url: string | null;
+        }> | null = null;
 
         const finish = (value: unknown) => {
           if (settled) {
@@ -287,17 +285,31 @@ export const app = new Elysia()
           }
 
           fileSeen = true;
+          const chunks: Buffer[] = [];
+          let totalBytes = 0;
 
           file.on("limit", () => {
             file.resume();
             fail(413, "Audio file exceeds the upload size limit.");
           });
 
-          uploadPromise = uploadAudioStream({
-            userId: user.id,
-            filename,
-            contentType: mimeType,
-            body: file,
+          uploadPromise = new Promise((resolveUpload, rejectUpload) => {
+            file.on("data", (chunk: Buffer) => {
+              totalBytes += chunk.length;
+              chunks.push(Buffer.from(chunk));
+            });
+
+            file.on("error", rejectUpload);
+
+            file.on("end", () => {
+              void uploadAudioStream({
+                userId: user.id,
+                filename,
+                contentType: mimeType,
+                body: Buffer.concat(chunks, totalBytes),
+                contentLength: totalBytes,
+              }).then(resolveUpload, rejectUpload);
+            });
           });
         });
 
@@ -329,8 +341,13 @@ export const app = new Elysia()
             finish({
               upload,
             });
-          } catch {
-            fail(500, "Upload to object storage failed.");
+          } catch (error) {
+            const message =
+              error instanceof Error && error.message
+                ? error.message
+                : "Upload to object storage failed.";
+
+            fail(500, message);
           }
         });
 

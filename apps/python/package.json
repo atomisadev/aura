@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "poetry run python -m main",
-    "run": "poetry run python -m main",
+    "dev": "poetry run python src/main.py",
+    "run": "poetry run python src/main.py",
     "check-types": "poetry run python -m py_compile src/*.py"
   }
 }
