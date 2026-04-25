@@ -3,11 +3,13 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from tkinter.constants import N
 
 import dotenv
 import librosa
 import numpy as np
+import soundfile as sf
+from numpy._core.numeric import full
+from numpy.random import Generator
 from scipy.fft import irfft, rfft
 from scipy.linalg import hadamard
 
@@ -20,12 +22,13 @@ if os.getenv("SECRET_KEY") is None:
 
 
 @dataclass(frozen=True)
-class AudioEncoder:
+class WaterMarker:
     name: str = "python-app"
 
     matrix: np.ndarray = field(init=False, repr=False)
     pn_mask: np.ndarray = field(init=False, repr=False)
     secret_indices: np.ndarray = field(init=False, repr=False)
+    rng: Generator = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "matrix", hadamard(WatermarkConfig.hadamard_size))
@@ -43,6 +46,8 @@ class AudioEncoder:
             "secret_indices",
             indices[: WatermarkConfig.num_bits],
         )
+
+        object.__setattr__(self, "rng", mask_rng)
 
     def encode_chunk(self) -> str:
         timestamp = datetime.now(UTC).isoformat(timespec="seconds")
@@ -68,15 +73,39 @@ class AudioEncoder:
         for i in range(WatermarkConfig.num_bits):
             combined_code += signs[i] * secret_rows[i]
 
+        masked_watermark = combined_code * self.pn_mask
+
+        start_ind = self.rng.integers(
+            0, len(magnitudes) - WatermarkConfig.hadamard_size
+        )
+
+        magnitudes[start_ind : start_ind + WatermarkConfig.hadamard_size] += (
+            masked_watermark
+            * WatermarkConfig.gain_alpha
+            * magnitudes[start_ind : start_ind + WatermarkConfig.hadamard_size]
+        )
+
         # Reconstruct audio chunk into time domain using inverse FFT
         new_freq_data = magnitudes * np.exp(1j * phases)
-        new_audio_chunk = irfft(new_freq_data)
+        new_audio_chunk = [irfft(new_freq_data)]
+        new_audio_chunk.append(audio[WatermarkConfig.chunk_size :])  # type: ignore
 
-        return f"{self.name} is running through Bun at {timestamp}"
+        full_audio = np.concatenate(new_audio_chunk)  # type: ignore
+
+        # Force the audio back into the safe -1 to 1 range
+        full_audio = np.clip(
+            full_audio,
+            -1.0,
+            1.0,
+        )
+
+        sf.write("watermarked_output.wav", full_audio, WatermarkConfig.sample_rate)
+
+        return f"{self.name} successfully watermarked! {timestamp}"
 
 
 def main() -> None:
-    app = AudioEncoder()
+    app = WaterMarker()
     print(app.encode_chunk())
 
 
