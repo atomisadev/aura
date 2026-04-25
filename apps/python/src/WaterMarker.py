@@ -22,7 +22,7 @@ if os.getenv("SECRET_KEY") is None:
 
 @dataclass(frozen=True)
 class WaterMarker:
-    name: str = "python-app"
+    name: str = "AURA"
 
     matrix: np.ndarray = field(init=False, repr=False)
     pn_mask: np.ndarray = field(init=False, repr=False)
@@ -60,7 +60,7 @@ class WaterMarker:
         timestamp = datetime.now(UTC).isoformat(timespec="seconds")
 
         # Load the file and resample it
-        audio, _sr = librosa.load("input/test.wav", sr=WatermarkConfig.sample_rate)
+        audio, _sr = librosa.load("input/test2.wav", sr=WatermarkConfig.sample_rate)
 
         # Create bit string based off character
         char = ord(WatermarkConfig.hidden_character)
@@ -122,7 +122,6 @@ class WaterMarker:
         return f"{self.name} successfully watermarked! {timestamp}"
 
     def decode_chunk(self) -> str:
-        timestamp = datetime.now(UTC).isoformat(timespec="seconds")
 
         # Load the file and resample it
         audio, _sr = librosa.load(
@@ -142,7 +141,6 @@ class WaterMarker:
             # FFT to convert to frequency bins
             freq_data = rfft(chunk_audio)
             magnitudes = np.abs(freq_data)  # type: ignore[assignment]
-            phases = np.angle(freq_data)  # type: ignore[assignment]
 
             # Decode in the log domain to match encoding
             log_mags = np.log(np.maximum(magnitudes, 1e-10))
@@ -175,7 +173,7 @@ class WaterMarker:
         decoded_bits = []
         for i in range(WatermarkConfig.num_bits):
             avg_corr = total_correlations[i] / num_chunks if num_chunks > 0 else 0
-            print(f"Bit {i}: average correlation = {avg_corr}")
+            # print(f"Bit {i}: average correlation = {avg_corr}")
             # If correlation is positive, bit is 1. If negative, bit is 0.
             decoded_bits.append("1" if avg_corr > 0 else "0")
 
