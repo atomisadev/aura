@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "poetry run python src/main.py",
     "run": "poetry run python src/main.py",
-    "check-types": "poetry run python -m py_compile src/*.py"
+    "check-types": "poetry run python -m py_compile src/*.py",
+    "celery": "poetry run python3 -m celery -A src.celeredis worker --loglevel=info --concurrency=1"
   }
 }

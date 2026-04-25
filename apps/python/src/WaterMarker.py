@@ -62,6 +62,11 @@ class WaterMarker:
         # Load the file and resample it
         audio, _sr = librosa.load("input/test2.wav", sr=WatermarkConfig.sample_rate)
 
+        chunk_size = WatermarkConfig.chunk_size
+        num_chunks = len(audio) // chunk_size
+        if num_chunks == 0:
+            return "The file is too short to encode"
+
         # Create bit string based off character
         char = ord(WatermarkConfig.hidden_character)
         bits = [int(char) for char in format(char, f"0{WatermarkConfig.num_bits}b")]
@@ -73,9 +78,6 @@ class WaterMarker:
             combined_code += signs[i] * self.secret_rows[i]
 
         masked_watermark = combined_code * self.pn_mask
-
-        chunk_size = WatermarkConfig.chunk_size
-        num_chunks = len(audio) // chunk_size
 
         full_audio = np.copy(audio)
 
@@ -131,6 +133,9 @@ class WaterMarker:
         chunk_size = WatermarkConfig.chunk_size
         num_chunks = len(audio) // chunk_size
 
+        if num_chunks == 0:
+            return "The file is too short to decode"
+
         total_correlations = np.zeros(WatermarkConfig.num_bits)
 
         for chunk_idx in range(num_chunks):
@@ -172,9 +177,13 @@ class WaterMarker:
 
         decoded_bits = []
         for i in range(WatermarkConfig.num_bits):
-            avg_corr = total_correlations[i] / num_chunks if num_chunks > 0 else 0
+            avg_corr = total_correlations[i] / num_chunks
             # print(f"Bit {i}: average correlation = {avg_corr}")
             # If correlation is positive, bit is 1. If negative, bit is 0.
+
+            if abs(avg_corr) < 20:
+                return f"The file was not encoded with {self.name}"
+
             decoded_bits.append("1" if avg_corr > 0 else "0")
 
         # Reconstruct the character from the bits

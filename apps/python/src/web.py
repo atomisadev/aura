@@ -137,6 +137,77 @@ def create_app() -> Flask:
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
+    @app.route("/decode", methods=["POST"])
+    def decode_audio():
+
+        data_bytes: Optional[bytes] = None
+
+        if "file" in request.files:
+            file_obj: FileStorage = request.files["file"]
+            try:
+                data_bytes = file_obj.read()
+            except Exception as exc:
+                LOG.exception("Failed to read uploaded file")
+                return jsonify(
+                    {"error": "failed to read uploaded file", "detail": str(exc)}
+                ), 400
+
+        if data_bytes is None and request.data:
+            data_bytes = request.data
+
+        if not data_bytes:
+            return jsonify({"error": "no audio provided"}), 400
+
+        if redis_lib is None:
+            return jsonify({"error": "redis client not available on server"}), 500
+
+        try:
+            redis_client = redis_lib.from_url(RESULT_BACKEND)
+        except Exception as exc:
+            LOG.exception("Failed to create redis client from RESULT_BACKEND")
+            return jsonify(
+                {"error": "failed to connect to redis", "detail": str(exc)}
+            ), 500
+
+        key = REDIS_KEY_PREFIX + uuid.uuid4().hex
+        try:
+            redis_client.set(name=key, value=data_bytes, ex=DATA_TTL_SECONDS)
+        except Exception as exc:
+            LOG.exception("Failed to store audio blob in redis")
+            return jsonify({"error": "failed to store audio", "detail": str(exc)}), 500
+
+        try:
+            async_result = celery_app.send_task("decoder.compute", args=[key])
+            task_id = getattr(async_result, "id", None)
+        except Exception as exc:
+            LOG.exception("Failed to send task to celery")
+            try:
+                redis_client.delete(key)
+            except Exception:
+                LOG.exception("Failed to delete redis key after send_task failure")
+            return jsonify({"error": "failed to enqueue task", "detail": str(exc)}), 500
+
+        # Block until the Celery task finishes (timeout in seconds)
+        TIMEOUT_SECONDS = 10
+        try:
+            task_result = async_result.get(timeout=TIMEOUT_SECONDS)
+        except Exception as exc:
+            LOG.exception("Task failed or timed out: %s", exc)
+            # Optionally clean up stored input key
+            try:
+                redis_client.delete(key)
+            except Exception:
+                LOG.exception("Failed to delete input redis key after timeout/failure")
+            return jsonify(
+                {"error": "task failed or timed out", "detail": str(exc)}
+            ), 500
+
+        message = None
+        if isinstance(task_result, dict):
+            message = task_result.get("message")
+
+        return jsonify({"message": message, "task_id": task_id}), 200
+
     @app.route("/test", methods=["POST"])
     def send_test():
         value = None
