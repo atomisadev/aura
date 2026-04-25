@@ -25,12 +25,11 @@ import {
   User as UserIcon,
   ChevronUp,
   Droplet,
-  Terminal,
   ShieldCheck,
-  Fingerprint,
   History,
 } from "lucide-react";
 import Link from "next/link";
+import { AuraLogo } from "@/components/aura-logo";
 
 export function AppSidebar() {
   const router = useRouter();
@@ -46,10 +45,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader>
         <div className="flex items-center gap-2 px-4 py-3">
-          <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Fingerprint className="size-5" />
-          </div>
-          <span className="font-bold text-lg">Aura</span>
+          <AuraLogo className="w-28 text-foreground" />
         </div>
       </SidebarHeader>
 

@@ -1,5 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { AuraLogo } from "@/components/aura-logo";
 
 export default function DashboardLayout({
   children,
@@ -12,8 +13,10 @@ export default function DashboardLayout({
       <div className="flex h-svh min-h-0 w-full flex-col bg-background text-foreground">
         <header className="flex h-14 shrink-0 items-center gap-4 border-b bg-card/50 backdrop-blur-sm px-4 lg:h-[60px] lg:px-6 sticky top-0 z-10">
           <SidebarTrigger />
-          <div className="font-semibold text-sm tracking-tight text-muted-foreground">
-            Aura Workspace
+          <div className="flex items-center gap-3">
+            <div className="font-semibold text-sm tracking-tight text-muted-foreground">
+              Workspace
+            </div>
           </div>
         </header>
 

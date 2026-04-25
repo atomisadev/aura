@@ -3,6 +3,7 @@
 import { startTransition, useEffect, useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { api } from "@/lib/eden";
+import { AuraLogo } from "@/components/aura-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Fingerprint, UploadCloud, Plus, FileAudio } from "lucide-react";
+import { UploadCloud, Plus, FileAudio } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type DashboardSession = {
@@ -217,9 +218,9 @@ export function DashboardClient({
       {/* Encoder Panel */}
       <Card className="shadow-lg border-muted">
         <CardHeader>
-          <div className="flex items-center gap-2 mb-1">
-            <Fingerprint className="size-5 text-primary" />
-            <CardTitle>Aura Encoder</CardTitle>
+          <div className="mb-1 flex items-center gap-3">
+            <AuraLogo className="w-28 text-foreground" />
+            <CardTitle>Encoder</CardTitle>
           </div>
           <CardDescription>
             Secure your audio with an inaudible cryptographic watermark.

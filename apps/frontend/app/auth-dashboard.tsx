@@ -4,13 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import { AuraLogo } from "@/components/aura-logo";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 
 export function AuthDashboard() {
@@ -51,6 +51,7 @@ export function AuthDashboard() {
     <div className="flex min-h-screen items-center justify-center p-6">
       <main className="w-full max-w-4xl grid gap-12 md:grid-cols-2 items-center">
         <div className="space-y-6">
+          <AuraLogo className="w-40 text-foreground" />
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
             Cryptographic Audio Security.
           </h1>
@@ -62,7 +63,7 @@ export function AuthDashboard() {
 
         <Card className="shadow-2xl">
           <CardHeader>
-            <CardTitle>Welcome to Aura</CardTitle>
+            <AuraLogo className="w-28 text-foreground" />
             <CardDescription>
               {isPending
                 ? "Verifying secure session..."
