@@ -1,9 +1,27 @@
 [project]
-name = "python-app"
+name = "python"
 version = "0.1.0"
-description = "A small Python workspace app that is launched through Bun."
-requires-python = ">=3.10"
+description = ""
+authors = [
+    {name = "Bryan Zou", email = "bryanzzou@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "python-dotenv (>=1.2.2,<2.0.0)",
+    "librosa (>=0.11.0,<0.12.0)",
+    "scipy (>=1.17.1,<2.0.0)",
+    "numpy (>=2.4.4,<3.0.0)"
+]
+
+[tool.poetry]
+packages = [
+    { include = "*", from = "src" }
+]
+
+[tool.poetry.scripts]
+my-project = "main:main"
 
 [build-system]
-requires = ["setuptools>=68"]
-build-backend = "setuptools.build_meta"
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
