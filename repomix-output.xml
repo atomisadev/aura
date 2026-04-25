@@ -77,16 +77,24 @@ apps/
   frontend/
     app/
       dashboard/
+        audio-uploader.tsx
         dashboard-client.tsx
         page.tsx
       auth-dashboard.tsx
       globals.css
       layout.tsx
       page.tsx
+    components/
+      ui/
+        button.tsx
+        card.tsx
+        input.tsx
+        label.tsx
     lib/
       auth-client.ts
       eden.ts
       server-session.ts
+      utils.ts
     public/
       file.svg
       globe.svg
@@ -96,6 +104,7 @@ apps/
     .gitignore
     AGENTS.md
     CLAUDE.md
+    components.json
     eslint.config.mjs
     next.config.ts
     package.json
@@ -106,8 +115,14 @@ apps/
     tsconfig.json
   python/
     src/
+      celeredis.py
+      enqueue.py
       main.py
+      send_test_job.py
+      tasks.py
+      test_task.py
       WatermarkConfig.py
+      web.py
     .gitignore
     package.json
     pyproject.toml
@@ -9597,86 +9612,6 @@ const baseUrl = process.env.API_URL ?? `http://localhost:${port}`;
 export const api: Treaty.Create<App> = treaty<App>(baseUrl);
 </file>
 
-<file path="apps/backend/src/storage.ts">
-import { S3Client } from "@aws-sdk/client-s3";
-import { Upload } from "@aws-sdk/lib-storage";
-import type { Readable } from "node:stream";
-
-const normalizeFilename = (filename: string) =>
-  filename
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, "-")
-    .replace(/^-+|-+$/g, "") || "audio";
-
-const buildPublicUrl = (key: string) => {
-  const publicBaseUrl = process.env.S3_PUBLIC_BASE_URL;
-
-  if (!publicBaseUrl) {
-    return null;
-  }
-
-  return `${publicBaseUrl.replace(/\/$/, "")}/${key}`;
-};
-
-export async function uploadAudioStream({
-  userId,
-  filename,
-  contentType,
-  body,
-}: {
-  userId: string;
-  filename: string;
-  contentType: string;
-  body: Readable;
-}) {
-  const bucket = process.env.S3_BUCKET;
-  const region = process.env.S3_REGION ?? "auto";
-  const endpoint = process.env.S3_ENDPOINT;
-  const accessKeyId = process.env.S3_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
-  const forcePathStyle = process.env.S3_FORCE_PATH_STYLE === "true";
-
-  if (!bucket) {
-    throw new Error("S3_BUCKET is required.");
-  }
-
-  if (!accessKeyId || !secretAccessKey) {
-    throw new Error("S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY are required.");
-  }
-
-  const client = new S3Client({
-    region,
-    endpoint,
-    forcePathStyle,
-    credentials: {
-      accessKeyId,
-      secretAccessKey,
-    },
-  });
-
-  const key = `uploads/${userId}/${Date.now()}-${normalizeFilename(filename)}`;
-
-  const upload = new Upload({
-    client,
-    params: {
-      Bucket: bucket,
-      Key: key,
-      Body: body,
-      ContentType: contentType,
-    },
-  });
-
-  await upload.done();
-
-  return {
-    bucket,
-    key,
-    url: buildPublicUrl(key),
-  };
-}
-</file>
-
 <file path="apps/backend/prisma.config.ts">
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -9731,21 +9666,44 @@ export default defineConfig({
 }
 </file>
 
-<file path="apps/frontend/app/dashboard/page.tsx">
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-import { DashboardClient } from "./dashboard-client";
-import { getServerSession } from "@/lib/server-session";
+<file path="apps/frontend/app/dashboard/audio-uploader.tsx">
+"use client";
 
-export default async function DashboardPage() {
-  const headerStore = await headers();
-  const session = await getServerSession(headerStore.get("cookie"));
+import { useState } from "react";
 
-  if (!session) {
-    redirect("/");
-  }
+export function AudioUploader() {
+  const [file, setFile] = useState<File | null>(null):
 
-  return <DashboardClient initialSession={session} />;
+  const upload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload`, {
+      method: "POST",
+      body: formData,
+      credentials: "include",
+    });
+
+    const data = await res.json();
+
+    alert(res.ok ? `Uploaded: ${data.upload.key}` : `Error: ${data.message}`)
+  };
+
+  return (
+      <form onSubmit={upload} className="space-y-2">
+        <input
+          type="file"
+          accept="audio/*"
+          onChange={(e) => setFile(e.target.files?.[0] || null)}
+        />
+        <button type="submit" className="px-4 py-2 bg-slate-950 text-white rounded">
+          Upload to B2
+        </button>
+      </form>
+  );
 }
 </file>
 
@@ -9905,6 +9863,231 @@ export function AuthDashboard() {
 }
 </file>
 
+<file path="apps/frontend/components/ui/button.tsx">
+import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
+import { Slot } from "radix-ui"
+
+import { cn } from "@/lib/utils"
+
+const buttonVariants = cva(
+  "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
+        outline:
+          "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+        secondary:
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+        ghost:
+          "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+        destructive:
+          "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default:
+          "h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
+        xs: "h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
+        sm: "h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
+        lg: "h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
+        icon: "size-8",
+        "icon-xs":
+          "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
+        "icon-sm":
+          "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
+        "icon-lg": "size-9",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
+
+function Button({
+  className,
+  variant = "default",
+  size = "default",
+  asChild = false,
+  ...props
+}: React.ComponentProps<"button"> &
+  VariantProps<typeof buttonVariants> & {
+    asChild?: boolean
+  }) {
+  const Comp = asChild ? Slot.Root : "button"
+
+  return (
+    <Comp
+      data-slot="button"
+      data-variant={variant}
+      data-size={size}
+      className={cn(buttonVariants({ variant, size, className }))}
+      {...props}
+    />
+  )
+}
+
+export { Button, buttonVariants }
+</file>
+
+<file path="apps/frontend/components/ui/card.tsx">
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+function Card({
+  className,
+  size = "default",
+  ...props
+}: React.ComponentProps<"div"> & { size?: "default" | "sm" }) {
+  return (
+    <div
+      data-slot="card"
+      data-size={size}
+      className={cn(
+        "group/card flex flex-col gap-4 overflow-hidden rounded-xl bg-card py-4 text-sm text-card-foreground ring-1 ring-foreground/10 has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:gap-3 data-[size=sm]:py-3 data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-header"
+      className={cn(
+        "group/card-header @container/card-header grid auto-rows-min items-start gap-1 rounded-t-xl px-4 group-data-[size=sm]/card:px-3 has-data-[slot=card-action]:grid-cols-[1fr_auto] has-data-[slot=card-description]:grid-rows-[auto_auto] [.border-b]:pb-4 group-data-[size=sm]/card:[.border-b]:pb-3",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-title"
+      className={cn(
+        "font-heading text-base leading-snug font-medium group-data-[size=sm]/card:text-sm",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-description"
+      className={cn("text-sm text-muted-foreground", className)}
+      {...props}
+    />
+  )
+}
+
+function CardAction({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-action"
+      className={cn(
+        "col-start-2 row-span-2 row-start-1 self-start justify-self-end",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardContent({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-content"
+      className={cn("px-4 group-data-[size=sm]/card:px-3", className)}
+      {...props}
+    />
+  )
+}
+
+function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-footer"
+      className={cn(
+        "flex items-center rounded-b-xl border-t bg-muted/50 p-4 group-data-[size=sm]/card:p-3",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export {
+  Card,
+  CardHeader,
+  CardFooter,
+  CardTitle,
+  CardAction,
+  CardDescription,
+  CardContent,
+}
+</file>
+
+<file path="apps/frontend/components/ui/input.tsx">
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+  return (
+    <input
+      type={type}
+      data-slot="input"
+      className={cn(
+        "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export { Input }
+</file>
+
+<file path="apps/frontend/components/ui/label.tsx">
+"use client"
+
+import * as React from "react"
+import { Label as LabelPrimitive } from "radix-ui"
+
+import { cn } from "@/lib/utils"
+
+function Label({
+  className,
+  ...props
+}: React.ComponentProps<typeof LabelPrimitive.Root>) {
+  return (
+    <LabelPrimitive.Root
+      data-slot="label"
+      className={cn(
+        "flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export { Label }
+</file>
+
 <file path="apps/frontend/lib/auth-client.ts">
 "use client";
 
@@ -9953,6 +10136,15 @@ export async function getServerSession(cookieHeader?: string | null) {
   }
 
   return (await response.json()) as SessionResponse | null;
+}
+</file>
+
+<file path="apps/frontend/lib/utils.ts">
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
 }
 </file>
 
@@ -10030,6 +10222,34 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 <file path="apps/frontend/CLAUDE.md">
 @AGENTS.md
+</file>
+
+<file path="apps/frontend/components.json">
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "radix-nova",
+  "rsc": true,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "app/globals.css",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "iconLibrary": "lucide",
+  "rtl": false,
+  "aliases": {
+    "components": "@/components",
+    "utils": "@/lib/utils",
+    "ui": "@/components/ui",
+    "lib": "@/lib",
+    "hooks": "@/hooks"
+  },
+  "menuColor": "default",
+  "menuAccent": "subtle",
+  "registries": {}
+}
 </file>
 
 <file path="apps/frontend/eslint.config.mjs">
@@ -10207,6 +10427,37 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 }
 </file>
 
+<file path="apps/python/src/send_test_job.py">
+import sys
+
+from celeredis import app
+
+
+def send_ping(value):
+    return app.send_task("test.ping", args=[value])
+
+
+if __name__ == "__main__":
+    value = sys.argv[1] if len(sys.argv) > 1 else "hello"
+
+    async_result = send_ping(value)
+    print("Sent 'test.ping' task id:", getattr(async_result, "id", None))
+    print("Waiting for result (timeout=10s)...")
+    try:
+        print("Result:", async_result.get(timeout=10))
+    except Exception as e:
+        print("Failed to fetch result within timeout or error occurred:", e)
+</file>
+
+<file path="apps/python/src/test_task.py">
+from celeredis import app
+
+
+@app.task(name="test.ping")
+def ping(value):
+    return f"pong: {value}"
+</file>
+
 <file path="apps/python/src/WatermarkConfig.py">
 from dataclasses import dataclass
 
@@ -10217,6 +10468,125 @@ class WatermarkConfig:
     chunk_size: int = 4096
     gain_alpha: float = 0.005
     target_freq_range: tuple = (12000, 15000)
+</file>
+
+<file path="apps/python/src/web.py">
+from __future__ import annotations
+
+import io
+import logging
+import uuid
+from typing import Optional
+
+from flask import Flask, jsonify, request
+from werkzeug.datastructures import FileStorage
+
+from celeredis import RESULT_BACKEND
+from celeredis import app as celery_app
+
+try:
+    import redis as redis_lib
+except Exception:
+    redis_lib = None
+
+LOG = logging.getLogger(__name__)
+LOG.addHandler(logging.NullHandler())
+
+
+DATA_TTL_SECONDS = 60 * 60
+REDIS_KEY_PREFIX = "aura:audio:"
+
+
+def create_app() -> Flask:
+    app = Flask(__name__)
+
+    if redis_lib is None:
+        LOG.error(
+            "redis package is not available; web endpoints that store blobs will fail"
+        )
+
+    @app.route("/upload", methods=["POST"])
+    def upload_audio():
+
+        data_bytes: Optional[bytes] = None
+
+        if "file" in request.files:
+            file_obj: FileStorage = request.files["file"]
+            try:
+                data_bytes = file_obj.read()
+            except Exception as exc:
+                LOG.exception("Failed to read uploaded file")
+                return jsonify(
+                    {"error": "failed to read uploaded file", "detail": str(exc)}
+                ), 400
+
+        if data_bytes is None and request.data:
+            data_bytes = request.data
+
+        if not data_bytes:
+            return jsonify({"error": "no audio provided"}), 400
+
+        if redis_lib is None:
+            return jsonify({"error": "redis client not available on server"}), 500
+
+        try:
+            redis_client = redis_lib.from_url(RESULT_BACKEND)
+        except Exception as exc:
+            LOG.exception("Failed to create redis client from RESULT_BACKEND")
+            return jsonify(
+                {"error": "failed to connect to redis", "detail": str(exc)}
+            ), 500
+
+        key = REDIS_KEY_PREFIX + uuid.uuid4().hex
+        try:
+            redis_client.set(name=key, value=data_bytes, ex=DATA_TTL_SECONDS)
+        except Exception as exc:
+            LOG.exception("Failed to store audio blob in redis")
+            return jsonify({"error": "failed to store audio", "detail": str(exc)}), 500
+
+        try:
+            async_result = celery_app.send_task("encoder.compute", args=[key])
+            task_id = getattr(async_result, "id", None)
+        except Exception as exc:
+            LOG.exception("Failed to send task to celery")
+            try:
+                redis_client.delete(key)
+            except Exception:
+                LOG.exception("Failed to delete redis key after send_task failure")
+            return jsonify({"error": "failed to enqueue task", "detail": str(exc)}), 500
+
+        return jsonify({"task_id": task_id, "data_key": key}), 200
+
+    @app.route("/test", methods=["POST"])
+    def send_test():
+        value = None
+        if request.is_json:
+            payload = request.get_json(silent=True) or {}
+            value = payload.get("value")
+        if value is None:
+            value = request.form.get("value")
+        if value is None:
+            value = request.args.get("value", "hello")
+
+        try:
+            async_result = celery_app.send_task("test.ping", args=[value])
+            task_id = getattr(async_result, "id", None)
+        except Exception as exc:
+            LOG.exception("Failed to enqueue test.ping")
+            return jsonify(
+                {"error": "failed to enqueue test task", "detail": str(exc)}
+            ), 500
+
+        return jsonify({"task_id": task_id, "value": value}), 202
+
+    return app
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    flask_app = create_app()
+    # Development server - for production run behind a WSGI server
+    flask_app.run(host="0.0.0.0", port=5000, debug=False)
 </file>
 
 <file path="apps/python/.gitignore">
@@ -10914,45 +11284,6 @@ Learn more about the power of Turborepo:
 - [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
 </file>
 
-<file path="apps/backend/src/auth.ts">
-import { betterAuth } from "better-auth";
-import { prismaAdapter } from "@better-auth/prisma-adapter";
-import { db } from "./db";
-
-const backendOrigin = process.env.BACKEND_ORIGIN ?? "http://localhost:4000";
-const frontendOrigin = process.env.FRONTEND_ORIGIN ?? "http://localhost:3000";
-const configuredAuthUrl = process.env.BETTER_AUTH_URL ?? backendOrigin;
-const normalizedAuthUrl = new URL(configuredAuthUrl);
-const inferredBasePath =
-  normalizedAuthUrl.pathname && normalizedAuthUrl.pathname !== "/"
-    ? normalizedAuthUrl.pathname
-    : undefined;
-
-normalizedAuthUrl.pathname = "/";
-normalizedAuthUrl.search = "";
-normalizedAuthUrl.hash = "";
-
-export const auth = betterAuth({
-  appName: "Aura",
-  baseURL: normalizedAuthUrl.toString(),
-  basePath: process.env.BETTER_AUTH_BASE_PATH ?? inferredBasePath ?? "/api/auth",
-  database: prismaAdapter(db, {
-    provider: "postgresql",
-  }),
-  experimental: {
-    joins: true,
-  },
-  trustedOrigins: [frontendOrigin, backendOrigin],
-  socialProviders: {
-    github: {
-      clientId: process.env.GITHUB_CLIENT_ID as string,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET as string,
-      scope: ["read:user", "user:email"],
-    },
-  },
-});
-</file>
-
 <file path="apps/backend/src/db.ts">
 import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaClient } from "../generated/prisma/client";
@@ -11038,6 +11369,402 @@ const server = Bun.serve({
 });
 
 console.log(`Backend running at ${server.url}`);
+</file>
+
+<file path="apps/backend/src/storage.ts">
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+
+const normalizeFilename = (filename: string) =>
+  filename
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "audio";
+
+const buildPublicUrl = (key: string) => {
+  const publicBaseUrl = process.env.S3_PUBLIC_BASE_URL;
+
+  if (!publicBaseUrl) {
+    return null;
+  }
+
+  return `${publicBaseUrl.replace(/\/$/, "")}/${key}`;
+};
+
+const shouldUseLocalFallback = () =>
+  process.env.ALLOW_LOCAL_UPLOAD_FALLBACK === "true";
+
+const saveAudioLocally = async ({
+  key,
+  body,
+}: {
+  key: string;
+  body: Uint8Array;
+}) => {
+  const uploadRoot = resolve(
+    process.cwd(),
+    process.env.LOCAL_UPLOAD_DIR ?? ".",
+  );
+  const filePath = resolve(uploadRoot, key);
+
+  await mkdir(dirname(filePath), { recursive: true });
+  await writeFile(filePath, body);
+
+  const publicBaseUrl = process.env.LOCAL_UPLOAD_BASE_URL;
+
+  return {
+    bucket: "local-dev",
+    key,
+    url: publicBaseUrl ? `${publicBaseUrl.replace(/\/$/, "")}/${key}` : null,
+  };
+};
+
+export async function uploadAudioStream({
+  userId,
+  filename,
+  contentType,
+  body,
+  contentLength,
+}: {
+  userId: string;
+  filename: string;
+  contentType: string;
+  body: Uint8Array;
+  contentLength: number;
+}) {
+  const bucket = process.env.S3_BUCKET;
+  const region = process.env.S3_REGION ?? "auto";
+  const endpoint = process.env.S3_ENDPOINT;
+  const accessKeyId = process.env.S3_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
+  const forcePathStyle = process.env.S3_FORCE_PATH_STYLE === "true";
+
+  const key = `uploads/${userId}/${Date.now()}-${normalizeFilename(filename)}`;
+
+  try {
+    if (!bucket) {
+      throw new Error("S3_BUCKET is required.");
+    }
+
+    if (!accessKeyId || !secretAccessKey) {
+      throw new Error("S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY are required.");
+    }
+
+    const client = new S3Client({
+      region,
+      endpoint,
+      forcePathStyle,
+      requestChecksumCalculation: "WHEN_REQUIRED",
+      responseChecksumValidation: "WHEN_REQUIRED",
+      credentials: {
+        accessKeyId,
+        secretAccessKey,
+      },
+    });
+
+    await client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+        ContentLength: contentLength,
+      }),
+    );
+
+    return {
+      bucket,
+      key,
+      url: buildPublicUrl(key),
+    };
+  } catch (error) {
+    if (endpoint?.includes("backblazeb2.com")) {
+      const err = error as { message?: string; Code?: string };
+
+      if (err.Code === "IncompleteBody") {
+        throw new Error(
+          "Backblaze rejected the upload. The configured S3 key/secret or endpoint is likely invalid for writes. Create a new Backblaze application key with `writeFiles` permission for this bucket and update the backend `.env`.",
+        );
+      }
+    }
+
+    if (!shouldUseLocalFallback()) {
+      throw error;
+    }
+
+    console.error("Object storage upload failed, using local fallback.", error);
+
+    return saveAudioLocally({
+      key,
+      body,
+    });
+  }
+}
+</file>
+
+<file path="apps/frontend/app/dashboard/page.tsx">
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+
+export default function DashboardPage() {
+  const [file, setFile] = useState<File | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const upload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!file) return;
+
+    setIsUploading(true);
+    setStatus("Uploading...");
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+
+      const data = await res.json();
+      setStatus(
+        res.ok ? `Success! Key: ${data.upload.key}` : `Error: ${data.message}`,
+      );
+    } catch (err) {
+      setStatus("Upload failed to connect to the server.");
+    } finally {
+      setIsUploading(false);
+      setFile(null);
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
+      <Card className="w-full max-w-md shadow-xl">
+        <CardHeader>
+          <CardTitle>Audio Uploader</CardTitle>
+          <CardDescription>
+            Upload audio directly to your Backblaze B2 bucket.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={upload} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="audio-file">Select Audio File</Label>
+              <Input
+                id="audio-file"
+                type="file"
+                accept="audio/*"
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+              />
+            </div>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={!file || isUploading}
+            >
+              {isUploading ? "Uploading..." : "Upload to B2"}
+            </Button>
+            {status && (
+              <p className="text-sm font-medium text-center text-slate-600 mt-2">
+                {status}
+              </p>
+            )}
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+</file>
+
+<file path="apps/frontend/app/layout.tsx">
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: "Aura",
+  description: "Better Auth-backed frontend and user-scoped resources",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+    >
+      <body className="min-h-full flex flex-col">{children}</body>
+    </html>
+  );
+}
+</file>
+
+<file path="apps/frontend/app/page.tsx">
+import { AuthDashboard } from "./auth-dashboard";
+
+export default function Home() {
+  return <AuthDashboard />;
+}
+</file>
+
+<file path="apps/frontend/lib/eden.ts">
+import { treaty, type Treaty } from "@elysiajs/eden";
+import type { App } from "backend";
+
+const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+export const api: Treaty.Create<App> = treaty<App>(baseUrl, {
+  fetch: {
+    credentials: "include",
+  },
+});
+</file>
+
+<file path="apps/python/src/celeredis.py">
+from celery import Celery
+
+BROKER_URL = "redis://localhost:6379/0"
+RESULT_BACKEND = "redis://localhost:6379/1"
+
+app = Celery("apps.python", broker=BROKER_URL, backend=RESULT_BACKEND)
+
+app.conf.update(
+    task_serializer="pickle",
+    result_serializer="pickle",
+    accept_content=["pickle", "json"],
+    task_acks_late=True,
+    worker_prefetch_multiplier=1,
+    task_time_limit=300,
+    include=["src.test_task", "src.tasks"],
+)
+</file>
+
+<file path="apps/python/src/enqueue.py">
+import numpy as np
+
+from celeredis import app
+
+
+def send_job(signal):
+    return app.send_task("encoder.compute", args=[signal])
+
+
+if __name__ == "__main__":
+    x = np.random.random(1024)
+    async_result = send_job(x)
+    print("Task id:", getattr(async_result, "id", None))
+    print("Waiting for result (timeout=10s)...")
+    try:
+        print("Result:", async_result.get(timeout=10))
+    except Exception as e:
+        print("Failed to fetch result within timeout or error occurred:", e)
+</file>
+
+<file path="apps/python/src/tasks.py">
+from celeredis import app
+
+
+@app.task(bind=True, name="encoder.compute")
+def compute_encode(self, data):
+    # TODO: Import encoding algorithm from other file
+    # result = fft.custom_fft(data)
+
+    # return result
+    raise NotImplementedError("Encoding algorithm not implemented yet")
+</file>
+
+<file path="turbo.json">
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "ui": "tui",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+    },
+    "lint": {
+      "dependsOn": ["^lint"]
+    },
+    "check-types": {
+      "dependsOn": ["^check-types"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}
+</file>
+
+<file path="apps/backend/src/auth.ts">
+import { betterAuth } from "better-auth";
+import { prismaAdapter } from "@better-auth/prisma-adapter";
+import { db } from "./db";
+
+const backendOrigin = process.env.BACKEND_ORIGIN ?? "http://localhost:4000";
+const frontendOrigin = process.env.FRONTEND_ORIGIN ?? "http://localhost:3000";
+const configuredAuthUrl = process.env.BETTER_AUTH_URL ?? backendOrigin;
+const normalizedAuthUrl = new URL(configuredAuthUrl);
+const inferredBasePath =
+  normalizedAuthUrl.pathname && normalizedAuthUrl.pathname !== "/"
+    ? normalizedAuthUrl.pathname
+    : undefined;
+
+normalizedAuthUrl.pathname = "/";
+normalizedAuthUrl.search = "";
+normalizedAuthUrl.hash = "";
+
+export const auth = betterAuth({
+  appName: "Aura",
+  baseURL: normalizedAuthUrl.toString(),
+  basePath:
+    process.env.BETTER_AUTH_BASE_PATH ?? inferredBasePath ?? "/api/auth",
+  database: prismaAdapter(db, {
+    provider: "postgresql",
+  }),
+  experimental: {
+    joins: true,
+  },
+  trustedOrigins: [frontendOrigin, backendOrigin],
+  socialProviders: {
+    github: {
+      clientId: process.env.GITHUB_CLIENT_ID as string,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET as string,
+      scope: ["read:user", "user:email"],
+    },
+  },
+});
 </file>
 
 <file path="apps/frontend/app/dashboard/dashboard-client.tsx">
@@ -11341,9 +12068,9 @@ export function DashboardClient({
                 `/dashboard` requires a valid backend session
               </h2>
               <p className="text-sm leading-7 text-slate-600">
-                Unauthenticated requests are redirected back to the landing
-                page before the dashboard renders. Direct visits and OAuth
-                returns both end up here when the session is valid.
+                Unauthenticated requests are redirected back to the landing page
+                before the dashboard renders. Direct visits and OAuth returns
+                both end up here when the session is valid.
               </p>
             </div>
           </article>
@@ -11351,7 +12078,9 @@ export function DashboardClient({
           <article className="rounded-[1.75rem] border border-slate-200/80 bg-white p-6">
             <div className="space-y-4">
               <div>
-                <p className="text-sm font-medium text-slate-500">Audio upload</p>
+                <p className="text-sm font-medium text-slate-500">
+                  Audio upload
+                </p>
                 <h2 className="text-xl font-semibold text-slate-950">
                   Stream one audio file to S3/R2
                 </h2>
@@ -11499,17 +12228,53 @@ export function DashboardClient({
 
 <file path="apps/frontend/app/globals.css">
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #e2e8f0;
-  --foreground: #020617;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 * {
@@ -11521,106 +12286,89 @@ html {
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
   font-family: var(--font-geist-sans), sans-serif;
 }
-</file>
 
-<file path="apps/frontend/app/layout.tsx">
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-export const metadata: Metadata = {
-  title: "Aura",
-  description: "Better Auth-backed frontend and user-scoped resources",
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
-    </html>
-  );
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
 }
-</file>
 
-<file path="apps/frontend/app/page.tsx">
-import { AuthDashboard } from "./auth-dashboard";
-
-export default function Home() {
-  return <AuthDashboard />;
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
 }
-</file>
 
-<file path="apps/frontend/lib/eden.ts">
-import { treaty, type Treaty } from "@elysiajs/eden";
-import type { App } from "backend";
-
-const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-
-export const api: Treaty.Create<App> = treaty<App>(baseUrl, {
-  fetch: {
-    credentials: "include",
-  },
-});
-</file>
-
-<file path="apps/python/src/main.py">
-from __future__ import annotations
-
-from dataclasses import dataclass
-from datetime import UTC, datetime
-
-import librosa
-import numpy as np
-from scipy.fft import irfft, rfft
-from scipy.linalg import hadamard
-
-from WatermarkConfig import WatermarkConfig
-
-
-@dataclass(frozen=True)
-class AudioEncoder:
-    name: str = "python-app"
-
-    def run(self) -> str:
-        timestamp = datetime.now(UTC).isoformat(timespec="seconds")
-
-        # Load the file and resample it
-        audio, sr = librosa.load("src/test.wav", sr=WatermarkConfig.sample_rate)
-
-        # FFT to convert to frequency bins
-        freq_data = rfft(audio[: WatermarkConfig.chunk_size])
-
-        return f"{self.name} is running through Bun at {timestamp}"
-
-
-def main() -> None:
-    app = AudioEncoder()
-    print(app.run())
-
-
-if __name__ == "__main__":
-    main()
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
 </file>
 
 <file path="apps/python/package.json">
@@ -11629,108 +12377,10 @@ if __name__ == "__main__":
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "poetry run python -m main",
-    "run": "poetry run python -m main",
+    "dev": "poetry run python src/main.py",
+    "run": "poetry run python src/main.py",
     "check-types": "poetry run python -m py_compile src/*.py"
   }
-}
-</file>
-
-<file path="apps/python/pyproject.toml">
-[project]
-name = "python"
-version = "0.1.0"
-description = ""
-authors = [
-    {name = "Bryan Zou", email = "bryanzzou@gmail.com"}
-]
-readme = "README.md"
-requires-python = ">=3.11"
-dependencies = [
-    "python-dotenv (>=1.2.2,<2.0.0)",
-    "librosa (>=0.11.0,<0.12.0)",
-    "scipy (>=1.17.1,<2.0.0)",
-    "numpy (>=2.4.4,<3.0.0)"
-]
-
-[tool.poetry]
-packages = [
-    { include = "*", from = "src" }
-]
-
-[tool.poetry.scripts]
-my-project = "main:main"
-
-[build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
-</file>
-
-<file path="turbo.json">
-{
-  "$schema": "https://turborepo.dev/schema.json",
-  "ui": "tui",
-  "tasks": {
-    "build": {
-      "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
-    },
-    "lint": {
-      "dependsOn": ["^lint"]
-    },
-    "check-types": {
-      "dependsOn": ["^check-types"]
-    },
-    "dev": {
-      "cache": false,
-      "persistent": true
-    }
-  }
-}
-</file>
-
-<file path="apps/frontend/package.json">
-{
-  "name": "frontend",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "check-types": "tsc --noEmit",
-    "python:run": "python3 -m python_app",
-    "python:check": "python3 -m py_compile python_app/*.py"
-  },
-  "dependencies": {
-    "@elysiajs/eden": "^1.4.9",
-    "backend": "workspace:*",
-    "better-auth": "^1.6.9",
-    "next": "16.2.4",
-    "react": "19.2.4",
-    "react-dom": "19.2.4"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "elysia": "^1.4.28",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.4",
-    "tailwindcss": "^4",
-    "typescript": "^5"
-  },
-  "ignoreScripts": [
-    "sharp",
-    "unrs-resolver"
-  ],
-  "trustedDependencies": [
-    "sharp",
-    "unrs-resolver"
-  ]
 }
 </file>
 
@@ -11773,6 +12423,171 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
+</file>
+
+<file path="apps/backend/package.json">
+{
+  "name": "backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "check-types": "tsc --noEmit",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/app.ts",
+      "import": "./src/app.ts"
+    },
+    "./eden": {
+      "types": "./src/eden.ts",
+      "import": "./src/eden.ts"
+    }
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1037.0",
+    "@aws-sdk/lib-storage": "^3.1037.0",
+    "@better-auth/prisma-adapter": "^1.6.9",
+    "@elysiajs/cors": "^1.4.2",
+    "@elysiajs/eden": "^1.4.9",
+    "@fastify/busboy": "^3.2.0",
+    "@prisma/adapter-neon": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "better-auth": "^1.6.9",
+    "elysia": "^1.4.28"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.13",
+    "prisma": "^7.8.0"
+  }
+}
+</file>
+
+<file path="apps/frontend/package.json">
+{
+  "name": "frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "check-types": "tsc --noEmit",
+    "python:run": "python3 -m python_app",
+    "python:check": "python3 -m py_compile python_app/*.py"
+  },
+  "dependencies": {
+    "@elysiajs/eden": "^1.4.9",
+    "backend": "workspace:*",
+    "better-auth": "^1.6.9",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.11.0",
+    "next": "16.2.4",
+    "radix-ui": "^1.4.3",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "shadcn": "^4.5.0",
+    "tailwind-merge": "^3.5.0",
+    "tw-animate-css": "^1.4.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "elysia": "^1.4.28",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.4",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  },
+  "ignoreScripts": [
+    "sharp",
+    "unrs-resolver"
+  ],
+  "trustedDependencies": [
+    "sharp",
+    "unrs-resolver"
+  ]
+}
+</file>
+
+<file path="apps/python/src/main.py">
+from __future__ import annotations
+
+import sys
+from dataclasses import dataclass
+from datetime import UTC, datetime
+
+import librosa
+import numpy as np
+import redis as redis_lib
+from scipy.fft import irfft, rfft
+from scipy.linalg import hadamard
+
+import web
+from celeredis import BROKER_URL, RESULT_BACKEND
+from celeredis import app as celery_app
+from WatermarkConfig import WatermarkConfig
+
+
+def init_clients():
+    clients = {
+        "broker": redis_lib.from_url(BROKER_URL),
+        "result": redis_lib.from_url(RESULT_BACKEND),
+    }
+
+    return clients
+
+
+@dataclass(frozen=True)
+class AudioEncoder:
+    name: str = "python-app"
+
+    def run(self) -> str:
+        timestamp = datetime.now(UTC).isoformat(timespec="seconds")
+
+        # Load the file and resample it
+        audio, sr = librosa.load("src/test.wav", sr=WatermarkConfig.sample_rate)
+
+        # FFT to convert to frequency bins
+        freq_data = rfft(audio[: WatermarkConfig.chunk_size])
+
+        return f"{self.name} is running through Bun at {timestamp}"
+
+
+def main() -> None:
+    clients = init_clients()
+    try:
+        worker_ping = celery_app.control.ping(timeout=1.0)
+        if worker_ping:
+            print("Live Celery workers responded:", worker_ping)
+        else:
+            print(
+                "No Celery worker responses (no workers running or not reachable).",
+                file=sys.stderr,
+            )
+    except Exception as e:
+        print("Error while pinging Celery workers:", e, file=sys.stderr)
+
+    app = AudioEncoder()
+    print(app.run())
+
+    web.logging.basicConfig(level=web.logging.INFO)
+    flask_app = web.create_app()
+    # Development server - for production run behind a WSGI server
+    flask_app.run(host="0.0.0.0", port=5000, debug=False)
+
+
+if __name__ == "__main__":
+    main()
 </file>
 
 <file path="apps/backend/src/app.ts">
@@ -12063,17 +12878,31 @@ export const app = new Elysia()
           }
 
           fileSeen = true;
+          const chunks: Buffer[] = [];
+          let totalBytes = 0;
 
           file.on("limit", () => {
             file.resume();
             fail(413, "Audio file exceeds the upload size limit.");
           });
 
-          uploadPromise = uploadAudioStream({
-            userId: user.id,
-            filename,
-            contentType: mimeType,
-            body: file,
+          uploadPromise = new Promise((resolveUpload, rejectUpload) => {
+            file.on("data", (chunk: Buffer) => {
+              totalBytes += chunk.length;
+              chunks.push(Buffer.from(chunk));
+            });
+
+            file.on("error", rejectUpload);
+
+            file.on("end", () => {
+              void uploadAudioStream({
+                userId: user.id,
+                filename,
+                contentType: mimeType,
+                body: Buffer.concat(chunks, totalBytes),
+                contentLength: totalBytes,
+              }).then(resolveUpload, rejectUpload);
+            });
           });
         });
 
@@ -12105,8 +12934,13 @@ export const app = new Elysia()
             finish({
               upload,
             });
-          } catch {
-            fail(500, "Upload to object storage failed.");
+          } catch (error) {
+            const message =
+              error instanceof Error && error.message
+                ? error.message
+                : "Upload to object storage failed.";
+
+            fail(500, message);
           }
         });
 
@@ -12121,47 +12955,38 @@ export const app = new Elysia()
 export type App = typeof app;
 </file>
 
-<file path="apps/backend/package.json">
-{
-  "name": "backend",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "bun --watch src/index.ts",
-    "start": "bun src/index.ts",
-    "build": "bun build src/index.ts --outdir dist --target bun",
-    "check-types": "tsc --noEmit",
-    "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev"
-  },
-  "exports": {
-    ".": {
-      "types": "./src/app.ts",
-      "import": "./src/app.ts"
-    },
-    "./eden": {
-      "types": "./src/eden.ts",
-      "import": "./src/eden.ts"
-    }
-  },
-  "dependencies": {
-    "@aws-sdk/client-s3": "^3.1037.0",
-    "@aws-sdk/lib-storage": "^3.1037.0",
-    "@better-auth/prisma-adapter": "^1.6.9",
-    "@elysiajs/cors": "^1.4.2",
-    "@elysiajs/eden": "^1.4.9",
-    "@fastify/busboy": "^3.2.0",
-    "@prisma/adapter-neon": "^7.8.0",
-    "@prisma/client": "^7.8.0",
-    "better-auth": "^1.6.9",
-    "elysia": "^1.4.28"
-  },
-  "devDependencies": {
-    "@types/bun": "^1.3.13",
-    "prisma": "^7.8.0"
-  }
-}
+<file path="apps/python/pyproject.toml">
+[project]
+name = "python"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Bryan Zou", email = "bryanzzou@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "python-dotenv (>=1.2.2,<2.0.0)",
+    "librosa (>=0.11.0,<0.12.0)",
+    "scipy (>=1.17.1,<2.0.0)",
+    "numpy (>=2.4.4,<3.0.0)",
+    "celery (>=5.6.3,<6.0.0)",
+    "vine (>=5.1.0,<6.0.0)",
+    "redis (>=4.5,<5.0)",
+    "flask (>=3.1.3,<4.0.0)"
+]
+
+[tool.poetry]
+packages = [
+    { include = "*", from = "src" }
+]
+
+[tool.poetry.scripts]
+my-project = "main:main"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
 </file>
 
 </files>

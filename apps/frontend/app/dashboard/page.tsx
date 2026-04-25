@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { FileAudio, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -19,7 +20,10 @@ export default function DashboardPage() {
 
   const upload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) return;
+    if (!file) {
+      setStatus("Choose an audio file before starting the upload.");
+      return;
+    }
 
     setIsUploading(true);
     setStatus("Uploading...");
@@ -38,7 +42,7 @@ export default function DashboardPage() {
       setStatus(
         res.ok ? `Success! Key: ${data.upload.key}` : `Error: ${data.message}`,
       );
-    } catch (err) {
+    } catch {
       setStatus("Upload failed to connect to the server.");
     } finally {
       setIsUploading(false);
@@ -47,40 +51,73 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
-      <Card className="w-full max-w-md shadow-xl">
+    <section className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+      <Card>
         <CardHeader>
-          <CardTitle>Audio Uploader</CardTitle>
+          <CardTitle>Audio Upload</CardTitle>
           <CardDescription>
-            Upload audio directly to your Backblaze B2 bucket.
+            Send a source file into the Aura pipeline without leaving the
+            workspace.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
+          <div className="flex items-start gap-3 rounded-lg border bg-muted/40 p-4">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
+              <UploadCloud className="size-5" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Ready for a single audio file</p>
+              <p className="text-sm text-muted-foreground">
+                Supported by your browser file picker. Start with one track and
+                the upload will be sent to the backend immediately.
+              </p>
+            </div>
+          </div>
+
           <form onSubmit={upload} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="audio-file">Select Audio File</Label>
+              <Label htmlFor="audio-file">Audio file</Label>
               <Input
                 id="audio-file"
                 type="file"
                 accept="audio/*"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                onChange={(e) => {
+                  setFile(e.target.files?.[0] || null);
+                  setStatus(null);
+                }}
               />
             </div>
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={!file || isUploading}
-            >
-              {isUploading ? "Uploading..." : "Upload to B2"}
+
+            <div className="rounded-lg border bg-background p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                  <FileAudio className="size-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">
+                    {file ? file.name : "No file selected"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {file
+                      ? "Ready to upload."
+                      : "Select an audio file to enable the action."}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <Button type="submit" className="w-full" disabled={!file || isUploading}>
+              {isUploading ? "Uploading..." : "Upload audio"}
             </Button>
-            {status && (
-              <p className="text-sm font-medium text-center text-slate-600 mt-2">
+
+            {status ? (
+              <div className="rounded-lg border bg-muted/40 px-4 py-3 text-sm">
                 {status}
-              </p>
-            )}
+              </div>
+            ) : null}
           </form>
         </CardContent>
       </Card>
-    </div>
+    </section>
   );
 }
