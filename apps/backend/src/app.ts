@@ -242,6 +242,7 @@ export const app = new Elysia()
 
         let fileSeen = false;
         let settled = false;
+        let uploadedFilename = "";
         let uploadPromise: Promise<{
           bucket: string;
           key: string;
@@ -285,6 +286,7 @@ export const app = new Elysia()
           }
 
           fileSeen = true;
+          uploadedFilename = filename;
           const chunks: Buffer[] = [];
           let totalBytes = 0;
 
@@ -383,9 +385,21 @@ export const app = new Elysia()
               );
             }
 
+            const resource = await db.resource.create({
+              data: {
+                userId: user.id,
+                name: uploadedFilename || "Untitled Audio",
+                url: upload.url,
+                processedUrl: processedUpload?.url,
+                s3Key: upload.key,
+                processedS3Key: processedUpload?.key,
+              },
+            });
+
             finish({
               upload,
               processedUpload,
+              resource,
             });
           } catch (error) {
             const message =
@@ -402,6 +416,84 @@ export const app = new Elysia()
     },
     {
       auth: true,
+    },
+  )
+  .get(
+    "/history",
+    async ({ user }) => {
+      const history = await db.resource.findMany({
+        where: {
+          userId: user.id,
+          OR: [{ s3Key: { not: null } }, { processedS3Key: { not: null } }],
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+      const ONE_HOUR_MS = 3600 * 1000;
+      const now = Date.now();
+
+      return {
+        history: history.map((item) => {
+          const isExpired =
+            now - new Date(item.createdAt).getTime() > ONE_HOUR_MS;
+          return {
+            ...item,
+            url: isExpired ? null : item.url,
+            processedUrl: isExpired ? null : item.processedUrl,
+            isExpired,
+          };
+        }),
+      };
+    },
+    {
+      auth: true,
+    },
+  )
+  .post(
+    "/history/:id/refresh",
+    async ({ params, user, status }) => {
+      const resource = await db.resource.findFirst({
+        where: {
+          id: params.id,
+          userId: user.id,
+        },
+      });
+
+      if (!resource) {
+        return status(404, notFoundError);
+      }
+
+      let newUrl = resource.url;
+      let newProcessedUrl = resource.processedUrl;
+
+      if (resource.s3Key) {
+        newUrl = await getSignedDownloadUrl(resource.s3Key);
+      }
+      if (resource.processedS3Key) {
+        newProcessedUrl = await getSignedDownloadUrl(resource.processedS3Key);
+      }
+
+      const updated = await db.resource.update({
+        where: { id: resource.id },
+        data: {
+          url: newUrl,
+          processedUrl: newProcessedUrl,
+          // We update createdAt so the 1-hour window resets for the UI
+          createdAt: new Date(),
+        },
+      });
+
+      return {
+        resource: updated,
+      };
+    },
+    {
+      auth: true,
+      params: t.Object({
+        id: t.String(),
+      }),
     },
   )
   .post(

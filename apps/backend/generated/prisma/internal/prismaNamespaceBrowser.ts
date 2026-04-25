@@ -136,6 +136,10 @@ export const ResourceScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
   name: 'name',
+  url: 'url',
+  processedUrl: 'processedUrl',
+  s3Key: 's3Key',
+  processedS3Key: 'processedS3Key',
   createdAt: 'createdAt'
 } as const
 

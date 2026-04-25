@@ -8,9 +8,9 @@ datasource db {
 }
 
 model user {
-  id            String    @id
+  id            String     @id
   name          String
-  email         String    @unique
+  email         String     @unique
   emailVerified Boolean
   image         String?
   createdAt     DateTime
@@ -53,8 +53,8 @@ model account {
   updatedAt             DateTime
   user                  user      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
   @@unique([accountId, providerId])
+  @@index([userId])
   @@map("account")
 }
 
@@ -66,17 +66,21 @@ model verification {
   createdAt  DateTime
   updatedAt  DateTime
 
-  @@index([identifier])
   @@unique([identifier, value])
+  @@index([identifier])
   @@map("verification")
 }
 
 model resource {
-  id        String   @id @default(cuid())
-  userId    String
-  name      String
-  createdAt DateTime @default(now())
-  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String   @id @default(cuid())
+  userId         String
+  name           String
+  url            String?
+  processedUrl   String?
+  s3Key          String?
+  processedS3Key String?
+  createdAt      DateTime @default(now())
+  user           user     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt(sort: Desc)])
   @@map("resource")

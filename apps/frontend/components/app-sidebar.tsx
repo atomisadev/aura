@@ -28,6 +28,7 @@ import {
   Terminal,
   ShieldCheck,
   Fingerprint,
+  History,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -70,6 +71,14 @@ export function AppSidebar() {
                   <Link href="/dashboard/verify">
                     <ShieldCheck />
                     <span>Verify File</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <Link href="/dashboard/history">
+                    <History />
+                    <span>History</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

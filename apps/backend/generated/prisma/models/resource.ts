@@ -28,6 +28,10 @@ export type ResourceMinAggregateOutputType = {
   id: string | null
   userId: string | null
   name: string | null
+  url: string | null
+  processedUrl: string | null
+  s3Key: string | null
+  processedS3Key: string | null
   createdAt: Date | null
 }
 
@@ -35,6 +39,10 @@ export type ResourceMaxAggregateOutputType = {
   id: string | null
   userId: string | null
   name: string | null
+  url: string | null
+  processedUrl: string | null
+  s3Key: string | null
+  processedS3Key: string | null
   createdAt: Date | null
 }
 
@@ -42,6 +50,10 @@ export type ResourceCountAggregateOutputType = {
   id: number
   userId: number
   name: number
+  url: number
+  processedUrl: number
+  s3Key: number
+  processedS3Key: number
   createdAt: number
   _all: number
 }
@@ -51,6 +63,10 @@ export type ResourceMinAggregateInputType = {
   id?: true
   userId?: true
   name?: true
+  url?: true
+  processedUrl?: true
+  s3Key?: true
+  processedS3Key?: true
   createdAt?: true
 }
 
@@ -58,6 +74,10 @@ export type ResourceMaxAggregateInputType = {
   id?: true
   userId?: true
   name?: true
+  url?: true
+  processedUrl?: true
+  s3Key?: true
+  processedS3Key?: true
   createdAt?: true
 }
 
@@ -65,6 +85,10 @@ export type ResourceCountAggregateInputType = {
   id?: true
   userId?: true
   name?: true
+  url?: true
+  processedUrl?: true
+  s3Key?: true
+  processedS3Key?: true
   createdAt?: true
   _all?: true
 }
@@ -145,6 +169,10 @@ export type ResourceGroupByOutputType = {
   id: string
   userId: string
   name: string
+  url: string | null
+  processedUrl: string | null
+  s3Key: string | null
+  processedS3Key: string | null
   createdAt: Date
   _count: ResourceCountAggregateOutputType | null
   _min: ResourceMinAggregateOutputType | null
@@ -173,6 +201,10 @@ export type resourceWhereInput = {
   id?: Prisma.StringFilter<"resource"> | string
   userId?: Prisma.StringFilter<"resource"> | string
   name?: Prisma.StringFilter<"resource"> | string
+  url?: Prisma.StringNullableFilter<"resource"> | string | null
+  processedUrl?: Prisma.StringNullableFilter<"resource"> | string | null
+  s3Key?: Prisma.StringNullableFilter<"resource"> | string | null
+  processedS3Key?: Prisma.StringNullableFilter<"resource"> | string | null
   createdAt?: Prisma.DateTimeFilter<"resource"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.userWhereInput>
 }
@@ -181,6 +213,10 @@ export type resourceOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   name?: Prisma.SortOrder
+  url?: Prisma.SortOrderInput | Prisma.SortOrder
+  processedUrl?: Prisma.SortOrderInput | Prisma.SortOrder
+  s3Key?: Prisma.SortOrderInput | Prisma.SortOrder
+  processedS3Key?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   user?: Prisma.userOrderByWithRelationInput
 }
@@ -192,6 +228,10 @@ export type resourceWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.resourceWhereInput | Prisma.resourceWhereInput[]
   userId?: Prisma.StringFilter<"resource"> | string
   name?: Prisma.StringFilter<"resource"> | string
+  url?: Prisma.StringNullableFilter<"resource"> | string | null
+  processedUrl?: Prisma.StringNullableFilter<"resource"> | string | null
+  s3Key?: Prisma.StringNullableFilter<"resource"> | string | null
+  processedS3Key?: Prisma.StringNullableFilter<"resource"> | string | null
   createdAt?: Prisma.DateTimeFilter<"resource"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.userWhereInput>
 }, "id">
@@ -200,6 +240,10 @@ export type resourceOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   name?: Prisma.SortOrder
+  url?: Prisma.SortOrderInput | Prisma.SortOrder
+  processedUrl?: Prisma.SortOrderInput | Prisma.SortOrder
+  s3Key?: Prisma.SortOrderInput | Prisma.SortOrder
+  processedS3Key?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.resourceCountOrderByAggregateInput
   _max?: Prisma.resourceMaxOrderByAggregateInput
@@ -213,12 +257,20 @@ export type resourceScalarWhereWithAggregatesInput = {
   id?: Prisma.StringWithAggregatesFilter<"resource"> | string
   userId?: Prisma.StringWithAggregatesFilter<"resource"> | string
   name?: Prisma.StringWithAggregatesFilter<"resource"> | string
+  url?: Prisma.StringNullableWithAggregatesFilter<"resource"> | string | null
+  processedUrl?: Prisma.StringNullableWithAggregatesFilter<"resource"> | string | null
+  s3Key?: Prisma.StringNullableWithAggregatesFilter<"resource"> | string | null
+  processedS3Key?: Prisma.StringNullableWithAggregatesFilter<"resource"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"resource"> | Date | string
 }
 
 export type resourceCreateInput = {
   id?: string
   name: string
+  url?: string | null
+  processedUrl?: string | null
+  s3Key?: string | null
+  processedS3Key?: string | null
   createdAt?: Date | string
   user: Prisma.userCreateNestedOneWithoutResourceInput
 }
@@ -227,12 +279,20 @@ export type resourceUncheckedCreateInput = {
   id?: string
   userId: string
   name: string
+  url?: string | null
+  processedUrl?: string | null
+  s3Key?: string | null
+  processedS3Key?: string | null
   createdAt?: Date | string
 }
 
 export type resourceUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
+  url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  processedUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  s3Key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  processedS3Key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.userUpdateOneRequiredWithoutResourceNestedInput
 }
@@ -241,6 +301,10 @@ export type resourceUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
+  url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  processedUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  s3Key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  processedS3Key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -248,12 +312,20 @@ export type resourceCreateManyInput = {
   id?: string
   userId: string
   name: string
+  url?: string | null
+  processedUrl?: string | null
+  s3Key?: string | null
+  processedS3Key?: string | null
   createdAt?: Date | string
 }
 
 export type resourceUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
+  url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  processedUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  s3Key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  processedS3Key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -261,6 +333,10 @@ export type resourceUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
+  url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  processedUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  s3Key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  processedS3Key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -278,6 +354,10 @@ export type resourceCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   name?: Prisma.SortOrder
+  url?: Prisma.SortOrder
+  processedUrl?: Prisma.SortOrder
+  s3Key?: Prisma.SortOrder
+  processedS3Key?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -285,6 +365,10 @@ export type resourceMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   name?: Prisma.SortOrder
+  url?: Prisma.SortOrder
+  processedUrl?: Prisma.SortOrder
+  s3Key?: Prisma.SortOrder
+  processedS3Key?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -292,6 +376,10 @@ export type resourceMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   name?: Prisma.SortOrder
+  url?: Prisma.SortOrder
+  processedUrl?: Prisma.SortOrder
+  s3Key?: Prisma.SortOrder
+  processedS3Key?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -340,12 +428,20 @@ export type resourceUncheckedUpdateManyWithoutUserNestedInput = {
 export type resourceCreateWithoutUserInput = {
   id?: string
   name: string
+  url?: string | null
+  processedUrl?: string | null
+  s3Key?: string | null
+  processedS3Key?: string | null
   createdAt?: Date | string
 }
 
 export type resourceUncheckedCreateWithoutUserInput = {
   id?: string
   name: string
+  url?: string | null
+  processedUrl?: string | null
+  s3Key?: string | null
+  processedS3Key?: string | null
   createdAt?: Date | string
 }
 
@@ -382,30 +478,50 @@ export type resourceScalarWhereInput = {
   id?: Prisma.StringFilter<"resource"> | string
   userId?: Prisma.StringFilter<"resource"> | string
   name?: Prisma.StringFilter<"resource"> | string
+  url?: Prisma.StringNullableFilter<"resource"> | string | null
+  processedUrl?: Prisma.StringNullableFilter<"resource"> | string | null
+  s3Key?: Prisma.StringNullableFilter<"resource"> | string | null
+  processedS3Key?: Prisma.StringNullableFilter<"resource"> | string | null
   createdAt?: Prisma.DateTimeFilter<"resource"> | Date | string
 }
 
 export type resourceCreateManyUserInput = {
   id?: string
   name: string
+  url?: string | null
+  processedUrl?: string | null
+  s3Key?: string | null
+  processedS3Key?: string | null
   createdAt?: Date | string
 }
 
 export type resourceUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
+  url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  processedUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  s3Key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  processedS3Key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type resourceUncheckedUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
+  url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  processedUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  s3Key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  processedS3Key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type resourceUncheckedUpdateManyWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
+  url?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  processedUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  s3Key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  processedS3Key?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -415,6 +531,10 @@ export type resourceSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   id?: boolean
   userId?: boolean
   name?: boolean
+  url?: boolean
+  processedUrl?: boolean
+  s3Key?: boolean
+  processedS3Key?: boolean
   createdAt?: boolean
   user?: boolean | Prisma.userDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["resource"]>
@@ -423,6 +543,10 @@ export type resourceSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exte
   id?: boolean
   userId?: boolean
   name?: boolean
+  url?: boolean
+  processedUrl?: boolean
+  s3Key?: boolean
+  processedS3Key?: boolean
   createdAt?: boolean
   user?: boolean | Prisma.userDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["resource"]>
@@ -431,6 +555,10 @@ export type resourceSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exte
   id?: boolean
   userId?: boolean
   name?: boolean
+  url?: boolean
+  processedUrl?: boolean
+  s3Key?: boolean
+  processedS3Key?: boolean
   createdAt?: boolean
   user?: boolean | Prisma.userDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["resource"]>
@@ -439,10 +567,14 @@ export type resourceSelectScalar = {
   id?: boolean
   userId?: boolean
   name?: boolean
+  url?: boolean
+  processedUrl?: boolean
+  s3Key?: boolean
+  processedS3Key?: boolean
   createdAt?: boolean
 }
 
-export type resourceOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "createdAt", ExtArgs["result"]["resource"]>
+export type resourceOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "url" | "processedUrl" | "s3Key" | "processedS3Key" | "createdAt", ExtArgs["result"]["resource"]>
 export type resourceInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.userDefaultArgs<ExtArgs>
 }
@@ -462,6 +594,10 @@ export type $resourcePayload<ExtArgs extends runtime.Types.Extensions.InternalAr
     id: string
     userId: string
     name: string
+    url: string | null
+    processedUrl: string | null
+    s3Key: string | null
+    processedS3Key: string | null
     createdAt: Date
   }, ExtArgs["result"]["resource"]>
   composites: {}
@@ -890,6 +1026,10 @@ export interface resourceFieldRefs {
   readonly id: Prisma.FieldRef<"resource", 'String'>
   readonly userId: Prisma.FieldRef<"resource", 'String'>
   readonly name: Prisma.FieldRef<"resource", 'String'>
+  readonly url: Prisma.FieldRef<"resource", 'String'>
+  readonly processedUrl: Prisma.FieldRef<"resource", 'String'>
+  readonly s3Key: Prisma.FieldRef<"resource", 'String'>
+  readonly processedS3Key: Prisma.FieldRef<"resource", 'String'>
   readonly createdAt: Prisma.FieldRef<"resource", 'DateTime'>
 }
     
