@@ -52,6 +52,8 @@ export function DashboardClient({
   const [selectedAudioFile, setSelectedAudioFile] = useState<File | null>(null);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
+  const [processedUploadResult, setProcessedUploadResult] =
+    useState<UploadResult | null>(null);
 
   const [isLoadingResources, setIsLoadingResources] = useState(false);
   const [isSavingResource, setIsSavingResource] = useState(false);
@@ -116,6 +118,7 @@ export function DashboardClient({
     setIsUploadingAudio(true);
     setUploadMessage(null);
     setUploadResult(null);
+    setProcessedUploadResult(null);
 
     const response = await fetch(`${apiBaseUrl}/upload`, {
       method: "POST",
@@ -124,7 +127,7 @@ export function DashboardClient({
     });
 
     const payload = (await response.json()) as
-      | { upload: UploadResult }
+      | { upload: UploadResult; processedUpload?: UploadResult }
       | { message: string };
 
     if (!response.ok || !("upload" in payload)) {
@@ -136,6 +139,9 @@ export function DashboardClient({
     }
 
     setUploadResult(payload.upload);
+    if (payload.processedUpload) {
+      setProcessedUploadResult(payload.processedUpload);
+    }
     setUploadMessage("Audio watermarked and secured successfully.");
     setSelectedAudioFile(null);
     setIsUploadingAudio(false);
@@ -280,20 +286,75 @@ export function DashboardClient({
           )}
 
           {uploadResult && (
-            <div className="mt-6 space-y-2 text-xs text-muted-foreground bg-muted/50 p-4 rounded-lg border">
-              <p>
-                <strong className="text-foreground">Bucket:</strong>{" "}
-                {uploadResult.bucket}
-              </p>
-              <p className="break-all">
-                <strong className="text-foreground">Key:</strong>{" "}
-                {uploadResult.key}
-              </p>
-              {uploadResult.url && (
-                <p className="break-all">
-                  <strong className="text-foreground">URL:</strong>{" "}
-                  {uploadResult.url}
+            <div className="mt-6 space-y-4 text-xs text-muted-foreground bg-muted/50 p-4 rounded-lg border">
+              <div>
+                <h4 className="font-semibold text-foreground mb-2 text-sm">
+                  Original Upload
+                </h4>
+                <p>
+                  <strong className="text-foreground">Bucket:</strong>{" "}
+                  {uploadResult.bucket}
                 </p>
+                <p className="break-all">
+                  <strong className="text-foreground">Key:</strong>{" "}
+                  {uploadResult.key}
+                </p>
+                {uploadResult.url && (
+                  <div className="mt-2 space-y-2">
+                    <p className="break-all">
+                      <strong className="text-foreground">URL:</strong>{" "}
+                      <a
+                        href={uploadResult.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        {uploadResult.url}
+                      </a>
+                    </p>
+                    <audio
+                      controls
+                      src={uploadResult.url}
+                      className="w-full h-10 mt-2"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {processedUploadResult && (
+                <div className="pt-4 border-t border-border">
+                  <h4 className="font-semibold text-foreground mb-2 text-sm">
+                    Watermarked Output
+                  </h4>
+                  <p>
+                    <strong className="text-foreground">Bucket:</strong>{" "}
+                    {processedUploadResult.bucket}
+                  </p>
+                  <p className="break-all">
+                    <strong className="text-foreground">Key:</strong>{" "}
+                    {processedUploadResult.key}
+                  </p>
+                  {processedUploadResult.url && (
+                    <div className="mt-2 space-y-2">
+                      <p className="break-all">
+                        <strong className="text-foreground">URL:</strong>{" "}
+                        <a
+                          href={processedUploadResult.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          {processedUploadResult.url}
+                        </a>
+                      </p>
+                      <audio
+                        controls
+                        src={processedUploadResult.url}
+                        className="w-full h-10 mt-2"
+                      />
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           )}

@@ -5,7 +5,7 @@ import { Readable } from "node:stream";
 import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 import { auth } from "./auth";
 import { db } from "./db";
-import { uploadAudioStream } from "./storage";
+import { getSignedDownloadUrl, uploadAudioStream } from "./storage";
 
 const frontendOrigin = process.env.FRONTEND_ORIGIN ?? "http://localhost:3000";
 const maxAudioUploadBytes = Number(
@@ -337,9 +337,55 @@ export const app = new Elysia()
 
           try {
             const upload = await uploadPromise;
+            let processedUpload = null;
+
+            try {
+              if (upload.key) {
+                const downloadUrl = await getSignedDownloadUrl(upload.key);
+                const pythonApiUrl =
+                  process.env.PYTHON_API_URL ?? "http://localhost:5000";
+                const response = await fetch(`${pythonApiUrl}/upload`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ file_url: downloadUrl }),
+                });
+
+                if (response.ok) {
+                  const arrayBuffer = await response.arrayBuffer();
+                  const processedBuffer = Buffer.from(arrayBuffer);
+
+                  const filename =
+                    upload.key.split("/").pop() ?? "watermarked.wav";
+                  processedUpload = await uploadAudioStream({
+                    userId: user.id,
+                    filename: `watermarked-${filename}`,
+                    contentType: "audio/wav",
+                    body: processedBuffer,
+                    contentLength: processedBuffer.length,
+                  });
+                } else {
+                  console.error("Python API failed:", await response.text());
+                }
+              }
+            } catch (pythonError) {
+              console.error(
+                "Failed to process with Python server:",
+                pythonError,
+              );
+            }
+
+            if (upload?.key) {
+              upload.url = await getSignedDownloadUrl(upload.key);
+            }
+            if (processedUpload?.key) {
+              processedUpload.url = await getSignedDownloadUrl(
+                processedUpload.key,
+              );
+            }
 
             finish({
               upload,
+              processedUpload,
             });
           } catch (error) {
             const message =

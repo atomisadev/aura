@@ -1,4 +1,9 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
@@ -75,7 +80,9 @@ export async function uploadAudioStream({
     }
 
     if (!accessKeyId || !secretAccessKey) {
-      throw new Error("S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY are required.");
+      throw new Error(
+        "S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY are required.",
+      );
     }
 
     const client = new S3Client({
@@ -127,4 +134,38 @@ export async function uploadAudioStream({
       body,
     });
   }
+}
+
+export async function getSignedDownloadUrl(key: string, expiresIn = 3600) {
+  const bucket = process.env.S3_BUCKET;
+  const region = process.env.S3_REGION ?? "auto";
+  const endpoint = process.env.S3_ENDPOINT;
+  const accessKeyId = process.env.S3_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
+  const forcePathStyle = process.env.S3_FORCE_PATH_STYLE === "true";
+
+  if (!bucket || !accessKeyId || !secretAccessKey) {
+    const publicBaseUrl = process.env.LOCAL_UPLOAD_BASE_URL;
+    if (publicBaseUrl) {
+      return `${publicBaseUrl.replace(/\/$/, "")}/${key}`;
+    }
+    return buildPublicUrl(key);
+  }
+
+  const client = new S3Client({
+    region,
+    endpoint,
+    forcePathStyle,
+    credentials: {
+      accessKeyId,
+      secretAccessKey,
+    },
+  });
+
+  const command = new GetObjectCommand({
+    Bucket: bucket,
+    Key: key,
+  });
+
+  return getSignedUrl(client, command, { expiresIn });
 }

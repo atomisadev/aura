@@ -61,15 +61,7 @@ export function AppSidebar() {
                 <SidebarMenuButton asChild>
                   <Link href="/dashboard">
                     <Droplet />
-                    <span>Watermark Project</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <Link href="/dashboard/api">
-                    <Terminal />
-                    <span>API Platform</span>
+                    <span>Watermark File</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -77,7 +69,7 @@ export function AppSidebar() {
                 <SidebarMenuButton asChild>
                   <Link href="/dashboard/verify">
                     <ShieldCheck />
-                    <span>Aura Tag Detection</span>
+                    <span>Verify File</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

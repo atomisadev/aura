@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import logging
+import urllib.request
 import uuid
 from typing import Optional
 
@@ -36,9 +37,29 @@ def create_app() -> Flask:
     def upload_audio():
 
         data_bytes: Optional[bytes] = None
+        file_obj = None
 
-        if "file" in request.files:
-            file_obj: FileStorage = request.files["file"]
+        if request.is_json:
+            payload = request.get_json(silent=True) or {}
+            file_url = payload.get("file_url") or payload.get("s3_url")
+            if file_url:
+                try:
+                    req = urllib.request.Request(
+                        file_url, headers={"User-Agent": "Mozilla/5.0"}
+                    )
+                    with urllib.request.urlopen(req) as resp:
+                        data_bytes = resp.read()
+                except Exception as exc:
+                    LOG.exception("Failed to download file from URL")
+                    return jsonify(
+                        {
+                            "error": "failed to download file from URL",
+                            "detail": str(exc),
+                        }
+                    ), 400
+
+        if data_bytes is None and "file" in request.files:
+            file_obj = request.files["file"]
             try:
                 data_bytes = file_obj.read()
             except Exception as exc:
@@ -47,7 +68,7 @@ def create_app() -> Flask:
                     {"error": "failed to read uploaded file", "detail": str(exc)}
                 ), 400
 
-        if data_bytes is None and request.data:
+        if data_bytes is None and request.data and not request.is_json:
             data_bytes = request.data
 
         if not data_bytes:
@@ -142,8 +163,27 @@ def create_app() -> Flask:
 
         data_bytes: Optional[bytes] = None
 
-        if "file" in request.files:
-            file_obj: FileStorage = request.files["file"]
+        if request.is_json:
+            payload = request.get_json(silent=True) or {}
+            file_url = payload.get("file_url") or payload.get("s3_url")
+            if file_url:
+                try:
+                    req = urllib.request.Request(
+                        file_url, headers={"User-Agent": "Mozilla/5.0"}
+                    )
+                    with urllib.request.urlopen(req) as resp:
+                        data_bytes = resp.read()
+                except Exception as exc:
+                    LOG.exception("Failed to download file from URL")
+                    return jsonify(
+                        {
+                            "error": "failed to download file from URL",
+                            "detail": str(exc),
+                        }
+                    ), 400
+
+        if data_bytes is None and "file" in request.files:
+            file_obj = request.files["file"]
             try:
                 data_bytes = file_obj.read()
             except Exception as exc:
@@ -152,7 +192,7 @@ def create_app() -> Flask:
                     {"error": "failed to read uploaded file", "detail": str(exc)}
                 ), 400
 
-        if data_bytes is None and request.data:
+        if data_bytes is None and request.data and not request.is_json:
             data_bytes = request.data
 
         if not data_bytes:
