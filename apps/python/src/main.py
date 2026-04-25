@@ -10,6 +10,7 @@ import redis as redis_lib
 from scipy.fft import irfft, rfft
 from scipy.linalg import hadamard
 
+import web
 from celeredis import BROKER_URL, RESULT_BACKEND
 from celeredis import app as celery_app
 from WatermarkConfig import WatermarkConfig
@@ -56,6 +57,11 @@ def main() -> None:
 
     app = AudioEncoder()
     print(app.run())
+
+    web.logging.basicConfig(level=web.logging.INFO)
+    flask_app = web.create_app()
+    # Development server - for production run behind a WSGI server
+    flask_app.run(host="0.0.0.0", port=5000, debug=False)
 
 
 if __name__ == "__main__":
