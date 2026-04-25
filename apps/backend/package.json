@@ -1,0 +1,30 @@
+{
+  "name": "backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "check-types": "tsc --noEmit"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/app.ts",
+      "import": "./src/app.ts"
+    },
+    "./eden": {
+      "types": "./src/eden.ts",
+      "import": "./src/eden.ts"
+    }
+  },
+  "dependencies": {
+    "@elysiajs/cors": "^1.4.2",
+    "@elysiajs/eden": "^1.4.9",
+    "elysia": "^1.4.28"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.13"
+  }
+}
