@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "python:run": "python3 -m python_app",
+    "python:check": "python3 -m py_compile python_app/*.py"
   },
   "dependencies": {
     "@elysiajs/eden": "^1.4.9",
