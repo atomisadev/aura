@@ -298,9 +298,9 @@ export function DashboardClient({
                 `/dashboard` requires a valid backend session
               </h2>
               <p className="text-sm leading-7 text-slate-600">
-                Unauthenticated requests are redirected back to the landing
-                page before the dashboard renders. Direct visits and OAuth
-                returns both end up here when the session is valid.
+                Unauthenticated requests are redirected back to the landing page
+                before the dashboard renders. Direct visits and OAuth returns
+                both end up here when the session is valid.
               </p>
             </div>
           </article>
@@ -308,7 +308,9 @@ export function DashboardClient({
           <article className="rounded-[1.75rem] border border-slate-200/80 bg-white p-6">
             <div className="space-y-4">
               <div>
-                <p className="text-sm font-medium text-slate-500">Audio upload</p>
+                <p className="text-sm font-medium text-slate-500">
+                  Audio upload
+                </p>
                 <h2 className="text-xl font-semibold text-slate-950">
                   Stream one audio file to S3/R2
                 </h2>
