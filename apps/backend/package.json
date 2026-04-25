@@ -8,7 +8,8 @@
     "start": "bun src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target bun",
     "check-types": "tsc --noEmit",
-    "auth:migrate": "bunx --bun better-auth migrate --config src/auth.ts --yes"
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev"
   },
   "exports": {
     ".": {
@@ -21,13 +22,16 @@
     }
   },
   "dependencies": {
+    "@better-auth/prisma-adapter": "^1.6.9",
+    "@prisma/adapter-neon": "^7.8.0",
+    "@prisma/client": "^7.8.0",
     "@elysiajs/cors": "^1.4.2",
     "@elysiajs/eden": "^1.4.9",
     "better-auth": "^1.6.9",
     "elysia": "^1.4.28"
   },
   "devDependencies": {
-    "@better-auth/cli": "^1.4.21",
-    "@types/bun": "^1.3.13"
+    "@types/bun": "^1.3.13",
+    "prisma": "^7.8.0"
   }
 }

@@ -1,31 +1,26 @@
-import { mkdirSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { Database } from "bun:sqlite";
+import { PrismaNeon } from "@prisma/adapter-neon";
+import { PrismaClient } from "../generated/prisma/client";
 
-const sourceDir = dirname(fileURLToPath(import.meta.url));
-const defaultDataDir = join(sourceDir, "..", "data");
+const globalForPrisma = globalThis as typeof globalThis & {
+  prisma?: PrismaClient;
+};
 
-mkdirSync(defaultDataDir, { recursive: true });
+const connectionString = process.env.DATABASE_URL;
 
-const dbPath = process.env.AUTH_DB_PATH ?? join(defaultDataDir, "aura.sqlite");
+if (!connectionString) {
+  throw new Error("DATABASE_URL is required for Prisma.");
+}
 
-export const db = new Database(dbPath, {
-  create: true,
-  strict: true,
+const adapter = new PrismaNeon({
+  connectionString,
 });
 
-db.exec("PRAGMA journal_mode = WAL;");
-db.exec("PRAGMA foreign_keys = ON;");
+export const db =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    adapter,
+  });
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS resources (
-    id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
-    name TEXT NOT NULL,
-    created_at TEXT NOT NULL
-  );
-
-  CREATE INDEX IF NOT EXISTS resources_user_id_created_at_idx
-    ON resources (user_id, created_at DESC);
-`);
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = db;
+}

@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { db } from "./db";
 
 const backendOrigin = process.env.BACKEND_ORIGIN ?? "http://localhost:4000";
@@ -18,7 +19,12 @@ export const auth = betterAuth({
   appName: "Aura",
   baseURL: normalizedAuthUrl.toString(),
   basePath: process.env.BETTER_AUTH_BASE_PATH ?? inferredBasePath ?? "/api/auth",
-  database: db,
+  database: prismaAdapter(db, {
+    provider: "postgresql",
+  }),
+  experimental: {
+    joins: true,
+  },
   trustedOrigins: [frontendOrigin, backendOrigin],
   socialProviders: {
     github: {

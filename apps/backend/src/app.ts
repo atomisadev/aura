@@ -3,13 +3,6 @@ import { Elysia, t } from "elysia";
 import { auth } from "./auth";
 import { db } from "./db";
 
-type Resource = {
-  id: string;
-  userId: string;
-  name: string;
-  createdAt: string;
-};
-
 const frontendOrigin = process.env.FRONTEND_ORIGIN ?? "http://localhost:3000";
 const unauthorizedError = {
   message: "Authentication required",
@@ -36,75 +29,6 @@ const betterAuth = new Elysia({ name: "better-auth" }).macro({
     },
   },
 });
-
-const resourceListQuery = db.query<Resource, [string]>(
-  "SELECT id, user_id as userId, name, created_at as createdAt FROM resources WHERE user_id = ? ORDER BY created_at DESC",
-);
-
-const resourceByIdQuery = db.query<Resource, [string, string]>(
-  "SELECT id, user_id as userId, name, created_at as createdAt FROM resources WHERE id = ? AND user_id = ? LIMIT 1",
-);
-
-const insertResource = db.query(
-  "INSERT INTO resources (id, user_id, name, created_at) VALUES (?, ?, ?, ?)",
-);
-
-const updateResource = db.query(
-  "UPDATE resources SET name = ? WHERE id = ? AND user_id = ?",
-);
-
-const deleteResource = db.query(
-  "DELETE FROM resources WHERE id = ? AND user_id = ?",
-);
-
-const listResources = (userId: string) => resourceListQuery.all(userId);
-const findResource = (id: string, userId: string) =>
-  resourceByIdQuery.get(id, userId) ?? null;
-
-const createResource = (userId: string, name: string) => {
-  const resource = {
-    id: crypto.randomUUID(),
-    userId,
-    name,
-    createdAt: new Date().toISOString(),
-  } satisfies Resource;
-
-  insertResource.run(
-    resource.id,
-    resource.userId,
-    resource.name,
-    resource.createdAt,
-  );
-
-  return resource;
-};
-
-const renameResource = (id: string, userId: string, name: string) => {
-  const existing = findResource(id, userId);
-
-  if (!existing) {
-    return null;
-  }
-
-  updateResource.run(name, id, userId);
-
-  return {
-    ...existing,
-    name,
-  } satisfies Resource;
-};
-
-const removeResource = (id: string, userId: string) => {
-  const existing = findResource(id, userId);
-
-  if (!existing) {
-    return null;
-  }
-
-  deleteResource.run(id, userId);
-
-  return existing;
-};
 
 export const app = new Elysia()
   .use(betterAuth)
@@ -147,8 +71,15 @@ export const app = new Elysia()
   )
   .get(
     "/resources",
-    ({ user }) => ({
-      resources: listResources(user.id),
+    async ({ user }) => ({
+      resources: await db.resource.findMany({
+        where: {
+          userId: user.id,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
     }),
     {
       auth: true,
@@ -156,8 +87,13 @@ export const app = new Elysia()
   )
   .get(
     "/resources/:id",
-    ({ params, status, user }) => {
-      const resource = findResource(params.id, user.id);
+    async ({ params, status, user }) => {
+      const resource = await db.resource.findFirst({
+        where: {
+          id: params.id,
+          userId: user.id,
+        },
+      });
 
       if (!resource) {
         return status(404, notFoundError);
@@ -176,8 +112,13 @@ export const app = new Elysia()
   )
   .post(
     "/resources",
-    ({ body, user }) => ({
-      resource: createResource(user.id, body.name.trim()),
+    async ({ body, user }) => ({
+      resource: await db.resource.create({
+        data: {
+          userId: user.id,
+          name: body.name.trim(),
+        },
+      }),
     }),
     {
       auth: true,
@@ -191,12 +132,26 @@ export const app = new Elysia()
   )
   .patch(
     "/resources/:id",
-    ({ body, params, status, user }) => {
-      const resource = renameResource(params.id, user.id, body.name.trim());
+    async ({ body, params, status, user }) => {
+      const existing = await db.resource.findFirst({
+        where: {
+          id: params.id,
+          userId: user.id,
+        },
+      });
 
-      if (!resource) {
+      if (!existing) {
         return status(404, notFoundError);
       }
+
+      const resource = await db.resource.update({
+        where: {
+          id: existing.id,
+        },
+        data: {
+          name: body.name.trim(),
+        },
+      });
 
       return {
         resource,
@@ -217,12 +172,23 @@ export const app = new Elysia()
   )
   .delete(
     "/resources/:id",
-    ({ params, status, user }) => {
-      const resource = removeResource(params.id, user.id);
+    async ({ params, status, user }) => {
+      const resource = await db.resource.findFirst({
+        where: {
+          id: params.id,
+          userId: user.id,
+        },
+      });
 
       if (!resource) {
         return status(404, notFoundError);
       }
+
+      await db.resource.delete({
+        where: {
+          id: resource.id,
+        },
+      });
 
       return {
         resource,
