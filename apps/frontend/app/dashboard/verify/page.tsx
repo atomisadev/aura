@@ -33,7 +33,9 @@ export default function VerifyPage() {
   const verify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) {
-      setStatus("Error: Select an audio file before starting the verification.");
+      setStatus(
+        "Error: Select an audio file before starting the verification.",
+      );
       return;
     }
 
@@ -57,17 +59,25 @@ export default function VerifyPage() {
 
       if (res.ok) {
         // Based on the python response: {"message": message, "task_id": task_id}
-        const hasTag = data.message !== null && data.message !== undefined && data.message !== "";
+        const hasTag =
+          data.message !== null &&
+          data.message !== undefined &&
+          data.message == "AURA decoded value A from file.";
         setVerificationResult({
           detected: hasTag,
           message: data.message,
         });
-        setStatus(hasTag ? "AURA watermark detected successfully!" : "Scan complete: No AURA watermark found.");
+        setStatus(
+          hasTag
+            ? "AURA watermark detected successfully!"
+            : "Scan complete: No AURA watermark found.",
+        );
       } else {
         setStatus(`Error: ${data.message || "Verification failed"}`);
       }
-    } catch {
-      setStatus("Error: Verification failed to connect to the server.");
+    } catch (e) {
+      console.error(e);
+      setStatus(`Error: Verification failed to connect to the server: ${e}`);
     } finally {
       setIsVerifying(false);
       setFile(null);
@@ -92,11 +102,11 @@ export default function VerifyPage() {
               <Search className="size-5" />
             </div>
             <div className="space-y-1">
-              <p className="text-sm font-medium">
-                Deep Scan Technology
-              </p>
+              <p className="text-sm font-medium">Deep Scan Technology</p>
               <p className="text-sm text-muted-foreground">
-                Upload any audio track to verify its origin. Our system will scan for inaudible cryptographic tags associated with your AURA workspace.
+                Upload any audio track to verify its origin. Our system will
+                scan for inaudible cryptographic tags associated with your AURA
+                workspace.
               </p>
             </div>
           </div>
@@ -179,23 +189,31 @@ export default function VerifyPage() {
             ) : null}
 
             {verificationResult && (
-              <div className={`mt-2 p-6 rounded-lg border flex flex-col items-center justify-center text-center gap-4 ${
-                verificationResult.detected
-                  ? "bg-green-500/5 border-green-500/20"
-                  : "bg-muted/30 border-border"
-              }`}>
-                <div className={`p-3 rounded-full ${
-                  verificationResult.detected ? "bg-green-500/10 text-green-600" : "bg-muted text-muted-foreground"
-                }`}>
+              <div
+                className={`mt-2 p-6 rounded-lg border flex flex-col items-center justify-center text-center gap-4 ${
+                  verificationResult.detected
+                    ? "bg-green-500/5 border-green-500/20"
+                    : "bg-muted/30 border-border"
+                }`}
+              >
+                <div
+                  className={`p-3 rounded-full ${
+                    verificationResult.detected
+                      ? "bg-green-500/10 text-green-600"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
                   <ShieldCheck className="size-8" />
                 </div>
                 <div>
                   <h3 className="text-lg font-bold">
-                    {verificationResult.detected ? "AURA Watermark Found" : "No AURA Watermark Detected"}
+                    {verificationResult.detected
+                      ? "AURA Watermark Found"
+                      : "No AURA Watermark Detected"}
                   </h3>
                   <p className="text-sm text-muted-foreground mt-1 max-w-xs">
                     {verificationResult.detected
-                      ? `This file was successfully identified as an authentic AURA-protected asset.${verificationResult.message ? ` Tag data: ${verificationResult.message}` : ''}`
+                      ? `This file was successfully identified as an authentic AURA-protected asset.${verificationResult.message ? ` Tag data: ${verificationResult.message}` : ""}`
                       : "This file does not contain a recognizable AURA watermark tag. It may be an original source or from an external system."}
                   </p>
                 </div>

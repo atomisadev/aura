@@ -403,6 +403,170 @@ export const app = new Elysia()
     {
       auth: true,
     },
+  )
+  .post(
+    "/decode",
+    async ({ request, status, user }) => {
+      const contentType = request.headers.get("content-type");
+
+      if (!contentType?.includes("multipart/form-data")) {
+        return status(400, badUploadRequestError);
+      }
+
+      if (!request.body) {
+        return status(400, badUploadRequestError);
+      }
+
+      return await new Promise((resolve) => {
+        const requestStream = Readable.fromWeb(
+          request.body as unknown as NodeReadableStream<Uint8Array>,
+        );
+        const busboy = new Busboy({
+          headers: {
+            "content-type": contentType,
+          },
+          limits: {
+            files: 1,
+            fileSize: maxAudioUploadBytes,
+            fields: 4,
+            parts: 5,
+          },
+        });
+
+        let fileSeen = false;
+        let settled = false;
+        let uploadPromise: Promise<{
+          bucket: string;
+          key: string;
+          url: string | null;
+        }> | null = null;
+
+        const finish = (value: unknown) => {
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+          resolve(value);
+        };
+
+        const fail = (code: number, message: string) => {
+          requestStream.destroy();
+          finish(
+            status(code, {
+              message,
+            }),
+          );
+        };
+
+        busboy.on("file", (fieldname, file, filename, _encoding, mimeType) => {
+          if (fieldname !== "file") {
+            file.resume();
+            return;
+          }
+
+          if (fileSeen) {
+            file.resume();
+            fail(400, "Only one file upload is allowed.");
+            return;
+          }
+
+          if (!mimeType.startsWith("audio/")) {
+            file.resume();
+            fail(400, "Only audio files are allowed.");
+            return;
+          }
+
+          fileSeen = true;
+          const chunks: Buffer[] = [];
+          let totalBytes = 0;
+
+          file.on("limit", () => {
+            file.resume();
+            fail(413, "Audio file exceeds the upload size limit.");
+          });
+
+          uploadPromise = new Promise((resolveUpload, rejectUpload) => {
+            file.on("data", (chunk: Buffer) => {
+              totalBytes += chunk.length;
+              chunks.push(Buffer.from(chunk));
+            });
+
+            file.on("error", rejectUpload);
+
+            file.on("end", () => {
+              void uploadAudioStream({
+                userId: user.id,
+                filename,
+                contentType: mimeType,
+                body: Buffer.concat(chunks, totalBytes),
+                contentLength: totalBytes,
+              }).then(resolveUpload, rejectUpload);
+            });
+          });
+        });
+
+        busboy.on("filesLimit", () => {
+          fail(400, "Only one file upload is allowed.");
+        });
+
+        busboy.on("error", () => {
+          fail(500, "Could not process the upload.");
+        });
+
+        requestStream.on("error", () => {
+          fail(500, "Could not read the upload stream.");
+        });
+
+        busboy.on("finish", async () => {
+          if (settled) {
+            return;
+          }
+
+          if (!fileSeen || !uploadPromise) {
+            fail(400, badUploadRequestError.message);
+            return;
+          }
+
+          try {
+            const upload = await uploadPromise;
+
+            if (upload.key) {
+              const downloadUrl = await getSignedDownloadUrl(upload.key);
+              const pythonApiUrl =
+                process.env.PYTHON_API_URL ?? "http://localhost:5000";
+              const response = await fetch(`${pythonApiUrl}/decode`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ file_url: downloadUrl }),
+              });
+
+              if (response.ok) {
+                const data = await response.json();
+                finish(data);
+              } else {
+                const errorText = await response.text();
+                fail(500, `Python decoding failed: ${errorText}`);
+              }
+            } else {
+              fail(500, "Upload failed to return a valid key.");
+            }
+          } catch (error) {
+            const message =
+              error instanceof Error && error.message
+                ? error.message
+                : "Decoding process failed.";
+
+            fail(500, message);
+          }
+        });
+
+        requestStream.pipe(busboy);
+      });
+    },
+    {
+      auth: true,
+    },
   );
 
 export type App = typeof app;
