@@ -26,6 +26,9 @@ coverage
 out/
 build
 dist
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
 
 
 # Debug
