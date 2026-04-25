@@ -18,7 +18,8 @@ normalizedAuthUrl.hash = "";
 export const auth = betterAuth({
   appName: "Aura",
   baseURL: normalizedAuthUrl.toString(),
-  basePath: process.env.BETTER_AUTH_BASE_PATH ?? inferredBasePath ?? "/api/auth",
+  basePath:
+    process.env.BETTER_AUTH_BASE_PATH ?? inferredBasePath ?? "/api/auth",
   database: prismaAdapter(db, {
     provider: "postgresql",
   }),
